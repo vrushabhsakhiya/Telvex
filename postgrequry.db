@@ -1,0 +1,104 @@
+-- Auto-generated PostgreSQL Schema for Taivex
+-- Run this in your PgAdmin Query Tool
+
+CREATE TABLE category (
+	id SERIAL NOT NULL, 
+	name VARCHAR(50) NOT NULL, 
+	gender VARCHAR(10) NOT NULL, 
+	is_custom BOOLEAN, 
+	fields_json JSON, 
+	PRIMARY KEY (id)
+);
+
+CREATE TABLE customer (
+	id SERIAL NOT NULL, 
+	name VARCHAR(100) NOT NULL, 
+	mobile VARCHAR(20) NOT NULL, 
+	alt_mobile VARCHAR(20), 
+	email VARCHAR(120), 
+	address TEXT, 
+	city VARCHAR(100), 
+	area VARCHAR(100), 
+	whatsapp BOOLEAN, 
+	gender VARCHAR(10), 
+	photo VARCHAR(200), 
+	notes TEXT, 
+	style_pref VARCHAR(200), 
+	birthday DATE, 
+	created_date TIMESTAMP WITHOUT TIME ZONE, 
+	last_visit TIMESTAMP WITHOUT TIME ZONE, 
+	PRIMARY KEY (id), 
+	UNIQUE (mobile)
+);
+
+CREATE TABLE shop_profile (
+	id SERIAL NOT NULL, 
+	shop_name VARCHAR(100), 
+	address TEXT, 
+	mobile VARCHAR(20), 
+	gst_no VARCHAR(20), 
+	terms TEXT, 
+	upi_id VARCHAR(50), 
+	logo VARCHAR(200), 
+	PRIMARY KEY (id)
+);
+
+CREATE TABLE "user" (
+	id SERIAL NOT NULL, 
+	username VARCHAR(64) NOT NULL, 
+	password_hash VARCHAR(128), 
+	role VARCHAR(20), 
+	permissions VARCHAR(255), 
+	created_by INTEGER, 
+	PRIMARY KEY (id), 
+	UNIQUE (username), 
+	FOREIGN KEY(created_by) REFERENCES "user" (id)
+);
+
+CREATE TABLE measurement (
+	id SERIAL NOT NULL, 
+	customer_id INTEGER NOT NULL, 
+	category_id INTEGER NOT NULL, 
+	date TIMESTAMP WITHOUT TIME ZONE, 
+	measurements_json JSON NOT NULL, 
+	remarks TEXT, 
+	is_active BOOLEAN, 
+	PRIMARY KEY (id), 
+	FOREIGN KEY(customer_id) REFERENCES customer (id), 
+	FOREIGN KEY(category_id) REFERENCES category (id)
+);
+
+CREATE TABLE "order" (
+	id SERIAL NOT NULL, 
+	customer_id INTEGER NOT NULL, 
+	items JSON NOT NULL, 
+	start_date DATE, 
+	delivery_date DATE, 
+	work_status VARCHAR(20), 
+	payment_status VARCHAR(20), 
+	total_amt FLOAT, 
+	advance FLOAT, 
+	balance FLOAT, 
+	payment_mode VARCHAR(50), 
+	trial_date DATE, 
+	notes TEXT, 
+	created_at TIMESTAMP WITHOUT TIME ZONE, 
+	PRIMARY KEY (id), 
+	FOREIGN KEY(customer_id) REFERENCES customer (id)
+);
+
+CREATE TABLE reminder (
+	id SERIAL NOT NULL, 
+	customer_id INTEGER, 
+	order_id INTEGER, 
+	type VARCHAR(50), 
+	due_date DATE, 
+	due_time TIME WITHOUT TIME ZONE, 
+	message VARCHAR(255), 
+	status VARCHAR(20), 
+	created_at TIMESTAMP WITHOUT TIME ZONE, 
+	PRIMARY KEY (id), 
+	FOREIGN KEY(customer_id) REFERENCES customer (id), 
+	FOREIGN KEY(order_id) REFERENCES "order" (id)
+);
+

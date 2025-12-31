@@ -1,0 +1,276 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Taivex | Conquer Fits</title>
+    <!-- Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap"
+        rel="stylesheet">
+    <!-- Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Custom CSS -->
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <!-- Theme Init (Prevent Flash) -->
+    <script>
+        (function () {
+            const currentTheme = localStorage.getItem('theme');
+            if (currentTheme === 'dark') {
+                document.documentElement.classList.add('dark-mode');
+                document.body ? document.body.classList.add('dark-mode') : null; // Fallback
+            }
+        })();
+    </script>
+</head>
+
+<body>
+    <div class="app-container">
+        <!-- Sidebar -->
+        <aside class="sidebar">
+            <div class="brand"
+                style="display: flex; flex-direction: column; align-items: flex-start; justify-content: center; padding: 2rem 1.5rem; min-height: 80px;">
+                <div class="header-brand-icon" style="display: flex; align-items: center; justify-content: center;">
+                    <!-- Tailoring Icon SVG -->
+                    <svg width="40" height="40" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"
+                        style="color: var(--primary-color);">
+                        <path
+                            d="M16 4C17.1046 4 18 4.89543 18 6C18 7.10457 17.1046 8 16 8C14.8954 8 14 7.10457 14 6C14 4.89543 14.8954 4 16 4Z"
+                            stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+                        <path
+                            d="M6 4C7.10457 4 8 4.89543 8 6C8 7.10457 7.10457 8 6 8C4.89543 8 4 7.10457 4 6C4 4.89543 4.89543 4 6 4Z"
+                            stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+                        <path d="M14.5 9L9.5 14L8 12.5" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                            stroke-linejoin="round" />
+                        <path d="M9.5 9L14.5 14L16 12.5" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                            stroke-linejoin="round" />
+                        <path d="M6 8L8 12.5" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                            stroke-linejoin="round" />
+                        <path d="M16 8L14 12.5" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                            stroke-linejoin="round" />
+                        <circle cx="12" cy="19" r="2" stroke="currentColor" stroke-width="2" />
+                    </svg>
+                    <span
+                        style="font-weight: 600; margin-left: 0.5rem; color: var(--text-primary); font-size: 1.1rem;">Taivex
+                        Pro</span>
+                </div>
+            </div>
+
+            <nav class="sidebar-nav" style="overflow-y: auto;">
+                <a href="{{ url_for('dashboard') }}"
+                    class="nav-item {% if active_page == 'dashboard' %}active{% endif %}">
+                    <i class="fa-solid fa-house"></i>
+                    <span>Dashboard</span>
+                </a>
+                <a href="{{ url_for('customers') }}"
+                    class="nav-item {% if active_page == 'customers' %}active{% endif %}">
+                    <i class="fa-solid fa-users"></i>
+                    <span>Customers</span>
+                </a>
+                <a href="{{ url_for('orders') }}" class="nav-item {% if active_page == 'orders' %}active{% endif %}">
+                    <i class="fa-solid fa-cart-shopping"></i>
+                    <span>Orders</span>
+                </a>
+                <a href="{{ url_for('bills') }}" class="nav-item {% if active_page == 'bills' %}active{% endif %}">
+                    <i class="fa-solid fa-file-invoice-dollar"></i>
+                    <span>Bills</span>
+                </a>
+                <a href="{{ url_for('measurements') }}"
+                    class="nav-item {% if active_page == 'measurements' %}active{% endif %}">
+                    <i class="fa-solid fa-ruler"></i>
+                    <span>Measurements</span>
+                </a>
+                <a href="{{ url_for('reminders') }}"
+                    class="nav-item {% if active_page == 'reminders' %}active{% endif %}">
+                    <i class="fa-regular fa-clock"></i>
+                    <span>Reminders</span>
+                </a>
+
+                {% if current_user.role == 'master' %}
+                <a href="{{ url_for('users') }}" class="nav-item {% if active_page == 'users' %}active{% endif %}">
+                    <i class="fa-solid fa-user-shield"></i>
+                    <span>Users</span>
+                </a>
+                {% endif %}
+
+                {% if current_user.has_permission('manage_settings') %}
+                <a href="{{ url_for('custom_categories') }}"
+                    class="nav-item {% if active_page == 'custom_categories' %}active{% endif %}">
+                    <i class="fa-solid fa-layer-group"></i>
+                    <span>Custom Categories</span>
+                </a>
+                <a href="{{ url_for('settings') }}"
+                    class="nav-item {% if active_page == 'settings' %}active{% endif %}">
+                    <i class="fa-solid fa-gear"></i>
+                    <span>Settings</span>
+                </a>
+                {% endif %}
+
+
+            </nav>
+
+            <div style="padding: 0 1rem 1rem 1rem;">
+                <a href="{{ url_for('logout') }}" class="nav-item" style="color: #ef4444; justify-content: flex-start;">
+                    <i class="fa-solid fa-right-from-bracket"></i>
+                    <span>Sign Out</span>
+                </a>
+            </div>
+
+            <div class="user-profile-mini" onclick="toggleModal('shopProfileSidebar')" style="cursor: pointer;">
+                <div class="avatar"
+                    style="background: var(--primary-color); overflow: hidden; display: flex; align-items: center; justify-content: center;">
+                    {% if shop.logo %}
+                    <img src="{{ url_for('static', filename=shop.logo) }}" alt="Shop Logo"
+                        style="width: 100%; height: 100%; object-fit: cover;">
+                    {% else %}
+                    <i class="fa-solid fa-store"></i>
+                    {% endif %}
+                </div>
+                <div class="info">
+                    <div class="name" style="font-size: 0.95rem; font-weight: 600;">
+                        {{ current_user.username|title if current_user.is_authenticated else 'Guest' }}
+                    </div>
+                    <div id="timeGreeting" style="font-size: 0.75rem; color: var(--text-secondary); font-weight: 500;">
+                        Hello,</div>
+                </div>
+            </div>
+        </aside>
+
+        <!-- Main Content -->
+        <main class="main-content">
+            <!-- Top Header -->
+            <header class="top-header">
+                <button class="mobile-menu-toggle" id="menuToggle">
+                    <i class="fa-solid fa-bars"></i>
+                </button>
+
+                <!-- Left Side: Shop Brand (Logo + Name) -->
+                <div class="header-brand-icon" style="display: flex; align-items: center; gap: 0.75rem;">
+                    {% if shop.logo %}
+                    <img src="{{ url_for('static', filename=shop.logo) }}" alt="Shop Logo"
+                        style="width: 40px; height: 40px; object-fit: contain; border-radius: 8px;">
+                    {% else %}
+                    <div
+                        style="width: 40px; height: 40px; background: var(--secondary-color); border-radius: 8px; display: flex; align-items: center; justify-content: center; color: white;">
+                        <i class="fa-solid fa-store"></i>
+                    </div>
+                    {% endif %}
+                    <span style="font-weight: 700; font-size: 1.25rem; color: var(--text-primary);">
+                        {{ shop.shop_name or 'My Shop' }}
+                    </span>
+                </div>
+
+                <div class="header-actions">
+                    <div class="lang-toggle">
+                        <span class="active">EN</span>
+                        <span>ગુજ</span>
+                        <span>हिं</span>
+                    </div>
+                    <button class="theme-toggle" id="themeToggle">
+                        <i class="fa-regular fa-moon"></i>
+                    </button>
+                </div>
+            </header>
+
+            <!-- Page Content -->
+            <div class="content-wrapper">
+                <!-- Flash Messages -->
+                {% with messages = get_flashed_messages(with_categories=true) %}
+                {% if messages %}
+                <div class="flash-messages" style="margin-bottom: 1.5rem;">
+                    {% for category, message in messages %}
+                    <div class="alert alert-{{ category }}"
+                        style="padding: 1rem; border-radius: 0.375rem; margin-bottom: 0.5rem; display: flex; align-items: center; gap: 0.75rem; 
+                        {% if category == 'success' %}background: #DCFCE7; color: #166534; border: 1px solid #BBF7D0;{% endif %}
+                        {% if category == 'error' or category == 'danger' %}background: #FEE2E2; color: #991B1B; border: 1px solid #FECACA;{% endif %}
+                        {% if category == 'warning' %}background: #FEF3C7; color: #92400E; border: 1px solid #FDE68A;{% endif %}">
+
+                        {% if category == 'success' %}<i class="fa-solid fa-circle-check"></i>{% endif %}
+                        {% if category == 'error' or category == 'danger' %}<i
+                            class="fa-solid fa-circle-exclamation"></i>{% endif %}
+                        {% if category == 'warning' %}<i class="fa-solid fa-triangle-exclamation"></i>{% endif %}
+
+                        <span>{{ message }}</span>
+                    </div>
+                    {% endfor %}
+                </div>
+                {% endif %}
+                {% endwith %}
+
+                {% block content %}{% endblock %}
+            </div>
+        </main>
+    </div>
+
+    <!-- Scripts -->
+    <script>
+        // Mobile Sidebar Toggle
+        const menuToggle = document.getElementById('menuToggle');
+        const sidebar = document.querySelector('.sidebar');
+
+        menuToggle.addEventListener('click', () => {
+            sidebar.classList.toggle('active');
+        });
+
+        // Theme Toggle with Persistence
+        const themeToggle = document.getElementById('themeToggle');
+        const themeIcon = themeToggle.querySelector('i');
+
+        // 1. Check LocalStorage on Load (Handled in Head now for 'body', but we need to update icon)
+        const currentTheme = localStorage.getItem('theme');
+        if (currentTheme === 'dark') {
+            document.body.classList.add('dark-mode'); // Ensure class is present
+            themeIcon.classList.remove('fa-moon');
+            themeIcon.classList.add('fa-sun');
+        }
+
+        // 2. Toggle & Save
+        themeToggle.addEventListener('click', () => {
+            document.body.classList.toggle('dark-mode');
+
+            // UI Update
+            if (document.body.classList.contains('dark-mode')) {
+                themeIcon.classList.remove('fa-moon');
+                themeIcon.classList.add('fa-sun');
+                localStorage.setItem('theme', 'dark');
+            } else {
+                themeIcon.classList.remove('fa-sun');
+                themeIcon.classList.add('fa-moon');
+                localStorage.setItem('theme', 'light');
+            }
+        });
+        // Time-based Greeting
+        function updateGreeting() {
+            const hour = new Date().getHours();
+            const greetingElem = document.getElementById('timeGreeting');
+            let greeting = 'Hello';
+
+            if (hour >= 5 && hour < 12) greeting = 'Good Morning';
+            else if (hour >= 12 && hour < 17) greeting = 'Good Afternoon';
+            else if (hour >= 17 && hour < 22) greeting = 'Good Evening';
+            else greeting = 'Good Night';
+
+            if (greetingElem) greetingElem.textContent = greeting + ',';
+        }
+        updateGreeting();
+
+        // Modal Toggle Function
+        function toggleModal(modalId) {
+            const modal = document.getElementById(modalId);
+            if (modal) {
+                modal.classList.toggle('active');
+            }
+        }
+    </script>
+    {% block scripts %}{% endblock %}
+    <!-- Shop Profile Modal -->
+    {% include 'shop_profile_modal.html' %}
+    <script src="{{ url_for('static', filename='js/script.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/ajax_nav.js') }}"></script>
+</body>
+
+</html>

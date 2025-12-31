@@ -1,0 +1,367 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="page-header" style="margin-bottom: 2rem;">
+    <a href="{{ url_for('customers') }}"
+        style="text-decoration: none; color: var(--text-secondary); margin-bottom: 0.5rem; display: inline-block;">
+        <i class="fa-solid fa-arrow-left"></i> Back to Customers
+    </a>
+    <h2 style="font-size: 1.5rem; font-weight: 600;">Add Measurement for {{ customer.name }}</h2>
+</div>
+
+<div class="card" style="max-width: 800px; margin: 0 auto; min-height: 500px;">
+
+    <!-- Step 1: Selection -->
+    <div id="step1" class="step-container">
+        <h3 style="margin-bottom: 1.5rem; text-align: center;">Select Category ({{ customer.gender|capitalize }})</h3>
+
+        <!-- Categories (Dynamic) -->
+        <div class="category-grid" style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 1rem;">
+            {% for cat in categories %}
+            <button class="cat-btn"
+                onclick='selectCategory({{ cat.id }}, "{{ cat.name }}", {{ cat.fields_json|tojson }})'>
+                {{ cat.name }}
+            </button>
+            {% else %}
+            <p>No categories found for this gender. Please add them in settings.</p>
+            {% endfor %}
+        </div>
+    </div>
+
+    <!-- Step 2: Form -->
+    <div id="step2" class="step-container" style="display: none;">
+        <div
+            style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 2rem; border-bottom: 1px solid var(--border-color); padding-bottom: 1rem;">
+            <h3 id="formTitle">Measurements</h3>
+            <button class="btn btn-sm btn-outline" onclick="goToStep(1)">Change Category</button>
+        </div>
+
+        <form method="POST" id="measurementForm" onsubmit="prepareSubmission(event)">
+            <input type="hidden" name="category_id" id="input_category_id">
+            <input type="hidden" name="measurements_json" id="input_measurements_json">
+
+            <!-- Dynamic Fields Container -->
+            <div id="dynamicFields" class="fields-grid"
+                style="display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem; margin-bottom: 2rem;">
+                <!-- Fields injected by JS -->
+            </div>
+
+            <!-- Add Custom Field Button -->
+            <div style="margin-bottom: 2rem; text-align: right;">
+                <button type="button" class="btn btn-sm btn-outline" onclick="addCustomField()"
+                    style="border: 1px dotted var(--primary-color); color: var(--primary-color);">
+                    <i class="fa-solid fa-plus"></i> Add Extra Field
+                </button>
+            </div>
+
+            <div class="form-group" style="margin-bottom: 2rem;">
+                <label>Remarks / Special Note</label>
+                <textarea name="remarks" class="form-control" rows="3"></textarea>
+            </div>
+
+            <div style="display: flex; gap: 1rem; justify-content: flex-end;">
+                <!-- Unified Save Action -->
+                <button type="button" class="btn btn-primary" onclick="saveAndOrder()"
+                    style="width: 100%; justify-content: center; font-size: 1.1rem;">
+                    <i class="fa-solid fa-check-circle"></i> Save & Create Order
+                </button>
+            </div>
+        </form>
+    </div>
+
+</div>
+
+<style>
+    .cat-btn {
+        padding: 1.5rem;
+        background: var(--bg-color);
+        border: 1px solid var(--border-color);
+        border-radius: 0.5rem;
+        font-weight: 500;
+        cursor: pointer;
+        transition: all 0.2s;
+        color: var(--text-primary);
+        font-size: 1.1rem;
+    }
+
+    .cat-btn:hover {
+        background: var(--secondary-color);
+        color: white;
+        border-color: var(--secondary-color);
+    }
+
+    .form-group label {
+        display: block;
+        margin-bottom: 0.5rem;
+        font-weight: 500;
+        color: var(--text-secondary);
+    }
+
+    .form-control {
+        width: 100%;
+        padding: 0.75rem;
+        border: 1px solid var(--border-color);
+        border-radius: 0.375rem;
+        background: var(--bg-color);
+        color: var(--text-primary);
+        font-size: 1rem;
+    }
+</style>
+
+<script>
+    function selectCategory(id, name, fields) {
+        // Go to step 2
+        document.getElementById('step1').style.display = 'none';
+        document.getElementById('step2').style.display = 'block';
+        document.getElementById('formTitle').innerText = name + ' Measurements';
+
+        // Set basic inputs
+        document.getElementById('input_category_id').value = id;
+
+        // Render Fields
+        const container = document.getElementById('dynamicFields');
+        container.innerHTML = '';
+
+        fields.forEach(field => {
+            const div = document.createElement('div');
+            div.className = 'form-group';
+            div.innerHTML = `
+                <label>${field}</label>
+                <input type="number" step="any" class="form-control measurement-input" data-field="${field}" 
+                       oninput="this.value = this.value.replace(/[^0-9.]/g, '')" placeholder="0.00">
+            `;
+            container.appendChild(div);
+        });
+    }
+
+    function goToStep(step) {
+        if (step === 1) {
+            document.getElementById('step2').style.display = 'none';
+            document.getElementById('step1').style.display = 'block';
+        }
+    }
+
+    function prepareSubmission(e) {
+        // Gather all measurement inputs into JSON
+        const inputs = document.querySelectorAll('.measurement-input');
+        const data = {};
+        inputs.forEach(input => {
+            data[input.dataset.field] = input.value;
+        });
+        document.getElementById('input_measurements_json').value = JSON.stringify(data);
+        return true;
+    }
+
+    function addCustomField() {
+        const name = prompt("Enter Custom Field Name (e.g., 'Bicep'):");
+        if (name && name.trim() !== "") {
+            const container = document.getElementById('dynamicFields');
+            const div = document.createElement('div');
+            div.className = 'form-group';
+            div.innerHTML = `
+                <label>${name} <i class="fa-solid fa-xmark" style="font-size: 0.8em; color: red; cursor: pointer;" onclick="this.parentElement.parentElement.remove()"></i></label>
+                <input type="number" step="any" class="form-control measurement-input" data-field="${name}" 
+                       oninput="this.value = this.value.replace(/[^0-9.]/g, '')" placeholder="0.00">
+            `;
+            container.appendChild(div);
+        }
+    }
+
+    // Trigger Save & Order
+    function saveAndOrder() {
+        // Open Modal to get Order Details
+        toggleOrderModal();
+    }
+
+    function submitOrder() {
+        const form = document.getElementById('measurementForm');
+
+        // Add hidden inputs for Order Details
+        const fields = ['start_date', 'delivery_date', 'order_status', 'order_notes', 'total_amt', 'advance', 'payment_mode'];
+        fields.forEach(f => {
+            const val = document.getElementById('modal_' + f).value;
+            const input = document.createElement('input');
+            input.type = 'hidden';
+            input.name = f;
+            input.value = val;
+            form.appendChild(input);
+        });
+
+        const input = document.createElement('input');
+        input.type = 'hidden';
+        input.name = 'save_and_order';
+        input.value = 'true';
+        form.appendChild(input);
+
+        prepareSubmission(null);
+        form.submit();
+    }
+
+    // Check for Reuse ID on Load
+    document.addEventListener('DOMContentLoaded', function () {
+        const params = new URLSearchParams(window.location.search);
+        const reuseId = params.get('reuse_id');
+
+        if (reuseId) {
+            fetch('/api/measurement/' + reuseId)
+                .then(res => res.json())
+                .then(data => {
+                    if (data && data.category_id) {
+                        // Find the category button to simulate click (or call selectCategory directly if we have name/fields)
+                        // Since we passed fields_json to selectCategory, we need to find that data.
+                        // Ideally we would have raw category data available.
+                        // Hacky but works: find the button with onclick containing the ID.
+                        // Better: Fetch category details or iterate buttons.
+
+                        // We need the fields info. Let's look for the button with data-id (add data-id to buttons first? No, existing onclick has it)
+                        // Let's iterate the category buttons.
+                        const buttons = document.querySelectorAll('.cat-btn');
+                        buttons.forEach(btn => {
+                            // onclick="selectCategory(1, ...)"
+                            // Parse the ID from attribute or add a logic to simplify
+                            if (btn.getAttribute('onclick').includes(`selectCategory(${data.category_id},`)) {
+                                btn.click(); // This will switch step and render fields
+
+                                // Now fill values
+                                setTimeout(() => { // Small delay to allow DOM update
+                                    const inputs = document.querySelectorAll('.measurement-input');
+                                    // data.data is the JSON object of measurements
+                                    if (data.data) {
+                                        inputs.forEach(inp => {
+                                            const field = inp.dataset.field;
+                                            if (data.data[field]) {
+                                                inp.value = data.data[field];
+                                            }
+                                        });
+
+                                        // Also add Custom Fields if they exist in data but not in form
+                                        for (const [key, val] of Object.entries(data.data)) {
+                                            // Check if input exists
+                                            if (!document.querySelector(`.measurement-input[data-field="${key}"]`)) {
+                                                // Add custom field
+                                                const container = document.getElementById('dynamicFields');
+                                                const div = document.createElement('div');
+                                                div.className = 'form-group';
+                                                div.innerHTML = `
+                                                    <label>${key} <i class="fa-solid fa-xmark" style="font-size: 0.8em; color: red; cursor: pointer;" onclick="this.parentElement.parentElement.remove()"></i></label>
+                                                    <input type="number" step="any" class="form-control measurement-input" data-field="${key}" value="${val}"
+                                                           oninput="this.value = this.value.replace(/[^0-9.]/g, '')">
+                                                `;
+                                                container.appendChild(div);
+                                            }
+                                        }
+                                    }
+                                    // Pre-fill remarks
+                                    if (data.remarks) {
+                                        document.querySelector('textarea[name="remarks"]').value = data.remarks;
+                                    }
+
+                                    // Show nice message
+                                    const msg = document.createElement('div');
+                                    msg.className = 'alert alert-info';
+                                    msg.textContent = 'Loaded previous measurement data. Please review.';
+                                    msg.style.marginBottom = '1rem';
+                                    msg.style.color = 'var(--primary-color)';
+                                    msg.style.fontWeight = '500';
+                                    document.getElementById('step2').insertBefore(msg, document.getElementById('measurementForm'));
+
+                                }, 100);
+                            }
+                        });
+                    }
+                });
+        }
+    });
+</script>
+
+<!-- Order Details Modal -->
+<div id="orderModal" class="sidebar-overlay" onclick="toggleOrderModal()">
+    <div class="sidebar-panel" onclick="event.stopPropagation()">
+        <div
+            style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 2rem; border-bottom: 1px solid var(--border-color); padding-bottom: 1rem;">
+            <h3 style="font-size: 1.5rem; font-weight: 600;">Order Details</h3>
+            <button onclick="toggleOrderModal()"
+                style="background: none; border: none; font-size: 1.5rem; cursor: pointer;">&times;</button>
+        </div>
+
+        <div style="margin-bottom: 1rem;">
+            <label style="display: block; margin-bottom: 0.5rem; font-weight: 500;">Start Date (Today)</label>
+            <input type="date" id="modal_start_date" class="form-control" readonly
+                style="background-color: #f9fafb; cursor: not-allowed;">
+        </div>
+
+        <div style="margin-bottom: 1rem;">
+            <label style="display: block; margin-bottom: 0.5rem; font-weight: 500;">Delivery / Finish Date</label>
+            <input type="date" id="modal_delivery_date" class="form-control">
+        </div>
+
+        <!-- ... -->
+
+        <!-- ... -->
+
+        <!-- Auto-set Status to Processing (Hidden) -->
+        <input type="hidden" id="modal_order_status" value="Processing">
+        <div style="margin-bottom: 1rem; color: var(--primary-color); font-weight: 500;">
+            Order Status: Processing (Auto)
+        </div>
+
+        <!-- ... -->
+
+        <script>
+            function toggleOrderModal() {
+                const modal = document.getElementById('orderModal');
+                if (!modal.classList.contains('active')) {
+                    modal.style.display = 'flex';
+                    setTimeout(() => { modal.classList.add('active'); }, 10);
+
+                    // Set default dates
+                    const today = new Date().toISOString().split('T')[0];
+
+                    // Set Start Date to Today and Readonly
+                    const startInput = document.getElementById('modal_start_date');
+                    startInput.value = today;
+                    // startInput.readOnly = true; // Already set in HTML
+
+                    // Set Delivery Date Min to Today
+                    const deliveryInput = document.getElementById('modal_delivery_date');
+                    deliveryInput.min = today;
+                    // deliveryInput.value = today; // Optional: default to today?
+
+                } else {
+                    modal.classList.remove('active');
+                    setTimeout(() => { modal.style.display = 'none'; }, 300);
+                }
+            }
+        </script>
+
+        <style>
+            /* Reuse Sidebar Styles (ensure these are present in base or page) */
+            .sidebar-overlay {
+                display: none;
+                position: fixed;
+                top: 0;
+                left: 0;
+                width: 100%;
+                height: 100%;
+                background: rgba(0, 0, 0, 0.5);
+                z-index: 1000;
+                justify-content: flex-end;
+            }
+
+            .sidebar-panel {
+                width: 100%;
+                max-width: 450px;
+                height: 100%;
+                background: var(--card-bg);
+                padding: 2rem;
+                box-shadow: -4px 0 15px rgba(0, 0, 0, 0.1);
+                transform: translateX(100%);
+                transition: transform 0.3s ease-out;
+                overflow-y: auto;
+            }
+
+            .sidebar-overlay.active .sidebar-panel {
+                transform: translateX(0);
+            }
+        </style>
+        {% endblock %}

@@ -1,0 +1,380 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div style="max-width: 1200px; margin: 0 auto;">
+
+    <!-- Page Header -->
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 2rem;">
+        <div>
+            <h2 style="font-size: 1.5rem; font-weight: 700; color: var(--text-primary);">Custom Categories</h2>
+            <p style="color: var(--text-secondary); font-size: 0.9rem;">Manage your measurement categories and app
+                preferences.</p>
+        </div>
+    </div>
+
+    <!-- Male Categories Section -->
+    <div style="margin-bottom: 2.5rem;">
+        <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 1.5rem;">
+            <div style="display: flex; align-items: center; gap: 0.75rem;">
+                <div
+                    style="width: 32px; height: 32px; background: #E0E7FF; color: #4338CA; border-radius: 50%; display: flex; align-items: center; justify-content: center;">
+                    <i class="fa-solid fa-person"></i>
+                </div>
+                <h3 style="font-size: 1.25rem; font-weight: 600; color: var(--text-primary);">Gent's Wear</h3>
+            </div>
+            <button class="btn" onclick="openAddCategoryModal('male')"
+                style="background: #4338CA; color: white; border: none; padding: 0.5rem 1rem; font-size: 0.9rem; border-radius: 0.5rem; display: flex; align-items: center; gap: 0.5rem; transition: opacity 0.2s;">
+                <i class="fa-solid fa-plus"></i> Add Category
+            </button>
+        </div>
+
+        <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 1.5rem;">
+            {% for cat in male_categories %}
+            <div class="card" style="position: relative; transition: transform 0.2s, box-shadow 0.2s;">
+                <div style="margin-top: 0.5rem; margin-bottom: 1rem;">
+                    <div
+                        style="width: 48px; height: 48px; background: #E0E7FF; border-radius: 12px; display: flex; align-items: center; justify-content: center; margin-bottom: 1rem; color: #4338CA; font-size: 1.25rem;">
+                        <i class="fa-solid fa-shirt"></i>
+                    </div>
+                    <h3
+                        style="font-size: 1.1rem; font-weight: 600; margin-bottom: 0.25rem; color: var(--text-primary);">
+                        {{ cat.name }}</h3>
+                    <div style="font-size: 0.85rem; color: var(--text-secondary);">{{ cat.fields_json|length }}
+                        Measurements</div>
+                </div>
+
+                <div style="display: flex; flex-wrap: wrap; gap: 0.4rem; margin-bottom: 1.5rem;">
+                    {% for field in cat.fields_json[:5] %}
+                    <span
+                        style="font-size: 0.75rem; background: #F3F4F6; color: #4B5563; padding: 0.2rem 0.6rem; border-radius: 4px; border: 1px solid #E5E7EB;">
+                        {{ field }}
+                    </span>
+                    {% endfor %}
+                </div>
+
+                <div
+                    style="border-top: 1px solid var(--border-color); padding-top: 1rem; display: flex; justify-content: flex-end;">
+                    <a href="{{ url_for('delete_category', id=cat.id) }}" class="btn btn-sm"
+                        style="color: #EF4444; background: transparent; padding: 0.4rem 0.8rem;"
+                        onclick="return confirm('Delete {{ cat.name }}?')">
+                        <i class="fa-regular fa-trash-can"></i> Delete
+                    </a>
+                </div>
+            </div>
+            {% else %}
+            <div
+                style="grid-column: 1/-1; padding: 2rem; border: 2px dashed #E0E7FF; background: #EEF2FF; border-radius: 0.5rem; text-align: center; color: #4338CA;">
+                <i class="fa-solid fa-circle-info"
+                    style="margin-bottom: 0.5rem; display: block; font-size: 1.5rem; opacity: 0.5;"></i>
+                No Gent's items added yet. Click "Add Category" to start.
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+
+    <!-- Female Categories Section -->
+    <div>
+        <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 1.5rem;">
+            <div style="display: flex; align-items: center; gap: 0.75rem;">
+                <div
+                    style="width: 32px; height: 32px; background: #FCE7F3; color: #BE185D; border-radius: 50%; display: flex; align-items: center; justify-content: center;">
+                    <i class="fa-solid fa-person-dress"></i>
+                </div>
+                <h3 style="font-size: 1.25rem; font-weight: 600; color: var(--text-primary);">Ladies' Wear</h3>
+            </div>
+            <button class="btn" onclick="openAddCategoryModal('female')"
+                style="background: #BE185D; color: white; border: none; padding: 0.5rem 1rem; font-size: 0.9rem; border-radius: 0.5rem; display: flex; align-items: center; gap: 0.5rem; transition: opacity 0.2s;">
+                <i class="fa-solid fa-plus"></i> Add Category
+            </button>
+        </div>
+
+        <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 1.5rem;">
+            {% for cat in female_categories %}
+            <div class="card" style="position: relative; transition: transform 0.2s, box-shadow 0.2s;">
+                <div style="margin-top: 0.5rem; margin-bottom: 1rem;">
+                    <div
+                        style="width: 48px; height: 48px; background: #FCE7F3; border-radius: 12px; display: flex; align-items: center; justify-content: center; margin-bottom: 1rem; color: #BE185D; font-size: 1.25rem;">
+                        <i class="fa-solid fa-vest-patches"></i>
+                        <!-- Using similar icon, maybe vest/dress if available -->
+                    </div>
+                    <h3
+                        style="font-size: 1.1rem; font-weight: 600; margin-bottom: 0.25rem; color: var(--text-primary);">
+                        {{ cat.name }}</h3>
+                    <div style="font-size: 0.85rem; color: var(--text-secondary);">{{ cat.fields_json|length }}
+                        Measurements</div>
+                </div>
+
+                <div style="display: flex; flex-wrap: wrap; gap: 0.4rem; margin-bottom: 1.5rem;">
+                    {% for field in cat.fields_json[:5] %}
+                    <span
+                        style="font-size: 0.75rem; background: #F3F4F6; color: #4B5563; padding: 0.2rem 0.6rem; border-radius: 4px; border: 1px solid #E5E7EB;">
+                        {{ field }}
+                    </span>
+                    {% endfor %}
+                </div>
+
+                <div
+                    style="border-top: 1px solid var(--border-color); padding-top: 1rem; display: flex; justify-content: flex-end;">
+                    <a href="{{ url_for('delete_category', id=cat.id) }}" class="btn btn-sm"
+                        style="color: #EF4444; background: transparent; padding: 0.4rem 0.8rem;"
+                        onclick="return confirm('Delete {{ cat.name }}?')">
+                        <i class="fa-regular fa-trash-can"></i> Delete
+                    </a>
+                </div>
+            </div>
+            {% else %}
+            <div
+                style="grid-column: 1/-1; padding: 2rem; border: 2px dashed #FCE7F3; background: #FFF1F2; border-radius: 0.5rem; text-align: center; color: #BE185D;">
+                <i class="fa-solid fa-circle-info"
+                    style="margin-bottom: 0.5rem; display: block; font-size: 1.5rem; opacity: 0.5;"></i>
+                No Ladies' items added yet. Click "Add Category" to start.
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+</div>
+
+<!-- Add Category Sidebar (Slide Over) -->
+<div id="addCategoryModal" class="sidebar-overlay" onclick="closeAddCategoryModal()">
+    <div class="sidebar-panel" onclick="event.stopPropagation()">
+        <!-- Header color will be set by JS -->
+        <div id="modalHeader" class="modal-header"
+            style="padding-bottom: 1.5rem; border-bottom: 1px solid #E5E7EB; margin-bottom: 2rem; transition: background 0.3s; display: flex; justify-content: space-between; align-items: center;">
+            <h3 id="modalTitle"
+                style="font-size: 1.5rem; font-weight: 600; color: var(--text-primary); display: flex; align-items: center; gap: 0.75rem;">
+                <!-- Icon will be injected -->
+                <span>Add New Category</span>
+            </h3>
+            <button onclick="closeAddCategoryModal()"
+                style="background: none; border: none; font-size: 1.5rem; cursor: pointer; color: var(--text-secondary); opacity: 0.7;">&times;</button>
+        </div>
+
+        <form action="{{ url_for('add_category') }}" method="POST">
+            <!-- Gender Selection (Hidden but togglable if needed, currently auto-set) -->
+            <div class="form-group" style="display: none;">
+                <input type="radio" name="gender" id="genderMale" value="male">
+                <input type="radio" name="gender" id="genderFemale" value="female">
+            </div>
+
+            <div class="form-group" style="margin-bottom: 1.5rem;">
+                <label
+                    style="font-weight: 500; margin-bottom: 0.5rem; display: block; color: var(--text-primary); font-size: 0.95rem;">Category
+                    Name</label>
+                <div style="position: relative;">
+                    <i class="fa-solid fa-tag"
+                        style="position: absolute; left: 1rem; top: 50%; transform: translateY(-50%); color: #9CA3AF;"></i>
+                    <input type="text" name="name" placeholder="e.g. Waistcoat, Blazer" required autofocus
+                        style="width: 100%; padding: 0.75rem 0.75rem 0.75rem 2.5rem; border: 1px solid #D1D5DB; border-radius: 0.375rem; background: #FFFFFF; color: var(--text-primary); font-size: 1rem; transition: box-shadow 0.2s, border-color 0.2s;">
+                </div>
+                <small
+                    style="color: var(--text-secondary); font-size: 0.8rem; margin-top: 0.25rem; display: block;">Name
+                    of the clothing item (e.g. Shirt, Pant)</small>
+            </div>
+
+            <div class="form-group" style="margin-bottom: 2rem;">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem;">
+                    <label style="font-weight: 500; color: var(--text-primary); font-size: 0.95rem;">Measurement
+                        Fields</label>
+                    <span
+                        style="font-size: 0.75rem; color: var(--text-secondary); background: #F3F4F6; padding: 2px 8px; border-radius: 4px;">What
+                        do you measure?</span>
+                </div>
+
+                <div class="field-builder"
+                    style="background: #F9FAFB; padding: 1.25rem; border-radius: 0.75rem; border: 1px dashed #D1D5DB;">
+
+                    <div style="display: flex; gap: 0.5rem; margin-bottom: 1rem;">
+                        <input type="text" id="newFieldInput" placeholder="Part name (e.g. Length)"
+                            style="flex: 1; padding: 0.6rem 0.8rem; border: 1px solid #D1D5DB; border-radius: 0.375rem; font-size: 0.95rem; box-shadow: 0 1px 2px rgba(0,0,0,0.05);">
+                        <button type="button" id="btnAddField" onclick="addFieldTag()"
+                            style="padding: 0 1.25rem; border-radius: 0.375rem; border: none; font-weight: 600; cursor: pointer; transition: all 0.2s; box-shadow: 0 1px 2px rgba(0,0,0,0.05);">
+                            <i class="fa-solid fa-plus"></i> Add
+                        </button>
+                    </div>
+
+                    <div id="fieldTags"
+                        style="display: flex; flex-wrap: wrap; gap: 0.6rem; min-height: 2rem; align-items: center;">
+                        <!-- Tags inserted here -->
+                        <div
+                            style="width: 100%; text-align: center; color: #9CA3AF; font-size: 0.85rem; padding: 0.5rem;">
+                            <i class="fa-solid fa-arrow-up"
+                                style="margin-bottom: 0.25rem; display: block; opacity: 0.5;"></i>
+                            Type above and press Enter
+                        </div>
+                    </div>
+                </div>
+                <input type="hidden" name="fields_json" id="fieldsJson" required>
+            </div>
+
+            <div class="modal-footer"
+                style="padding-top: 1rem; border-top: 1px solid #E5E7EB; display: flex; justify-content: flex-end; gap: 1rem;">
+                <button type="button" class="btn" onclick="closeAddCategoryModal()"
+                    style="border: 1px solid #D1D5DB; background: white; color: #374151; padding: 0.75rem 1.5rem; border-radius: 0.5rem; font-weight: 500; cursor: pointer; transition: background 0.1s;">
+                    Cancel
+                </button>
+                <button type="submit" id="btnSaveCategory" class="btn"
+                    style="padding: 0.75rem 2rem; border-radius: 0.5rem; font-weight: 600; color: white; border: none; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1); cursor: pointer; transition: transform 0.1s;">
+                    Add Category
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<style>
+    /* Sidebar Overlay (Copied from Customers) */
+    .sidebar-overlay {
+        display: none;
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(0, 0, 0, 0.5);
+        z-index: 1000;
+        justify-content: flex-end;
+        /* Align to right */
+    }
+
+    /* Sidebar Panel */
+    .sidebar-panel {
+        width: 100%;
+        max-width: 500px;
+        /* Slightly wider for category builder */
+        height: 100%;
+        background: white;
+        padding: 2rem;
+        box-shadow: -4px 0 15px rgba(0, 0, 0, 0.1);
+        transform: translateX(100%);
+        /* Start hidden off-screen */
+        transition: transform 0.3s ease-out;
+        overflow-y: auto;
+    }
+
+    /* Active State for Panel */
+    .sidebar-overlay.active .sidebar-panel {
+        transform: translateX(0);
+    }
+</style>
+
+<script>
+    const modal = document.getElementById('addCategoryModal');
+    let fields = [];
+    let currentGender = 'male'; // State to track current theme
+
+    function openAddCategoryModal(gender) {
+        // Reset and Show with Animation
+        fields = [];
+        currentGender = gender;
+        renderFields();
+        document.getElementById('fieldsJson').value = '[]';
+        document.getElementById('newFieldInput').value = '';
+
+        const titleEl = document.getElementById('modalTitle');
+        const headerEl = document.getElementById('modalHeader');
+        const saveBtn = document.getElementById('btnSaveCategory');
+        const addBtn = document.getElementById('btnAddField');
+
+        // Logic to show sidebar
+        if (!modal.classList.contains('active')) {
+            modal.style.display = 'flex';
+            setTimeout(() => {
+                modal.classList.add('active');
+            }, 10);
+        }
+
+        // Auto-set gender and Dynamic Theming
+        if (gender === 'male') {
+            document.getElementById('genderMale').checked = true;
+
+            // Themes: Indigo (Gent's)
+            titleEl.innerHTML = `<i class="fa-solid fa-shirt"></i> Add Gent's Wear Category`;
+            titleEl.style.color = '#4338CA';
+            // headerEl.style.background = '#FFFFFF'; 
+            saveBtn.style.background = '#4338CA';
+            addBtn.style.background = '#4338CA';
+            addBtn.style.color = 'white';
+
+        } else if (gender === 'female') {
+            document.getElementById('genderFemale').checked = true;
+
+            // Themes: Pink (Ladies')
+            titleEl.innerHTML = `<i class="fa-solid fa-person-dress"></i> Add Ladies' Wear Category`;
+            titleEl.style.color = '#BE185D';
+            // headerEl.style.background = '#FFFFFF';
+            saveBtn.style.background = '#BE185D';
+            addBtn.style.background = '#BE185D';
+            addBtn.style.color = 'white';
+        }
+
+        // Focus input
+        setTimeout(() => document.querySelector('input[name="name"]').focus(), 100);
+    }
+
+    function closeAddCategoryModal() {
+        modal.classList.remove('active');
+        setTimeout(() => {
+            modal.style.display = 'none';
+        }, 300);
+    }
+
+    function addFieldTag() {
+        const input = document.getElementById('newFieldInput');
+        const val = input.value.trim();
+        if (val && !fields.includes(val)) {
+            fields.push(val);
+            renderFields();
+            input.value = '';
+            input.focus();
+        }
+        updateJson();
+    }
+
+    // Allow Enter key to add field
+    document.getElementById('newFieldInput').addEventListener('keypress', function (e) {
+        if (e.key === 'Enter') {
+            e.preventDefault();
+            addFieldTag();
+        }
+    });
+
+    function removeField(index) {
+        fields.splice(index, 1);
+        renderFields();
+        updateJson();
+    }
+
+    function renderFields() {
+        const container = document.getElementById('fieldTags');
+        container.innerHTML = '';
+
+        if (fields.length === 0) {
+            container.innerHTML = '<div style="width: 100%; text-align: center; color: #9CA3AF; font-size: 0.85rem; padding: 0.5rem;"><i class="fa-solid fa-arrow-up" style="margin-bottom: 0.25rem; display: block; opacity: 0.5;"></i>Type above and press Enter</div>';
+            return;
+        }
+
+        // Determine Tag Colors based on Gender
+        let bg = '#E0E7FF'; // Default Male
+        let txt = '#4338CA';
+
+        if (currentGender === 'female') {
+            bg = '#FCE7F3';
+            txt = '#BE185D';
+        }
+
+        fields.forEach((f, i) => {
+            const tag = document.createElement('span');
+            tag.style.cssText = `background: ${bg}; color: ${txt}; padding: 0.35rem 0.75rem; border-radius: 99px; font-size: 0.85rem; font-weight: 500; display: inline-flex; align-items: center; gap: 0.5rem; transition: all 0.2s;`;
+            tag.innerHTML = `${f} <i class="fa-solid fa-xmark" onclick="removeField(${i})" style="cursor: pointer; opacity: 0.7;"></i>`;
+
+            container.appendChild(tag);
+        });
+    }
+
+    function updateJson() {
+        document.getElementById('fieldsJson').value = JSON.stringify(fields);
+    }
+
+    // Close modal on click outside (handled by overlay onclick)
+</script>
+{% endblock %}

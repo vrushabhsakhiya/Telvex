@@ -1,0 +1,223 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="page-header" style="margin-bottom: 2rem;">
+    <h2 style="font-size: 1.5rem; font-weight: 600;">User Management</h2>
+    <div style="font-size: 0.9rem; color: var(--text-secondary);">Manage staff accounts and permissions</div>
+</div>
+
+<div class="grid-container" style="display: grid; grid-template-columns: 1fr 350px; gap: 2rem;">
+    <!-- Left: List of Users -->
+    <div class="card">
+        <h3 style="margin-bottom: 1.5rem; border-bottom: 1px solid var(--border-color); padding-bottom: 0.5rem;">Staff
+            List</h3>
+        <div class="table-container">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Username</th>
+                        <th>Permissions</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for user in users %}
+                    <tr>
+                        <td style="font-weight: 500;">{{ user.username }}</td>
+                        <td>
+                            {% if user.permissions %}
+                            {% for p in user.permissions.split(',') %}
+                            <span class="badge badge-secondary" style="font-size: 0.75rem;">{{ p }}</span>
+                            {% endfor %}
+                            {% else %}
+                            <span style="color: var(--text-secondary);">-</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            <button
+                                onclick="editUser('{{ user.id }}', '{{ user.username }}', '{{ user.email or '' }}', '{{ user.permissions }}')"
+                                class="btn btn-sm btn-outline btn-icon">
+                                <i class="fa-solid fa-pen"></i>
+                            </button>
+                            <a href="{{ url_for('delete_user', id=user.id) }}" class="btn btn-sm btn-outline btn-icon"
+                                onclick="return confirm('Delete this user?')"
+                                style="color: var(--danger-color); border-color: var(--danger-color);">
+                                <i class="fa-solid fa-trash"></i>
+                            </a>
+                        </td>
+                    </tr>
+                    {% else %}
+                    <tr>
+                        <td colspan="3" style="text-align: center;">No staff users found.</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- Right: Create/Edit Form -->
+    <div class="card"
+        style="border: none; box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1); overflow: hidden; padding: 0;">
+        <div style="background: linear-gradient(135deg, var(--primary-color) 0%, #1e40af 100%); padding: 1.5rem;">
+            <h3 id="formTitle"
+                style="color: white; margin: 0; font-weight: 600; display: flex; align-items: center; gap: 0.5rem;">
+                <i class="fa-solid fa-user-plus"></i> Create New Staff
+            </h3>
+            <p style="color: rgba(255,255,255,0.8); font-size: 0.85rem; margin-top: 0.5rem; margin-bottom: 0;">
+                Add a new staff member and assign specific permissions.
+            </p>
+        </div>
+
+        <div style="padding: 1.5rem;">
+            <form id="userForm" method="POST" action="{{ url_for('create_user') }}">
+                <input type="hidden" name="user_id" id="user_id">
+
+                <div class="form-group" style="position: relative; margin-bottom: 1.5rem;">
+                    <label
+                        style="font-weight: 600; font-size: 0.95rem; margin-bottom: 0.75rem; display: block; color: var(--text-dark);">
+                        Username
+                    </label>
+                    <div style="position: relative;">
+                        <i class="fa-solid fa-user"
+                            style="position: absolute; left: 1.25rem; top: 50%; transform: translateY(-50%); color: var(--text-light); font-size: 1.1rem; z-index: 2;"></i>
+                        <input type="text" name="username" id="username" class="form-control" required
+                            autocomplete="off" placeholder="e.g. staff_john"
+                            style="padding: 1rem 1rem 1rem 3.5rem; width: 100%; bg-color: #f8fafc; border: 2px solid #e2e8f0; border-radius: 12px; font-size: 1rem; transition: all 0.3s ease; color: var(--text-dark);">
+                    </div>
+                </div>
+
+                <div class="form-group" style="position: relative; margin-bottom: 1.5rem;">
+                    <label
+                        style="font-weight: 600; font-size: 0.95rem; margin-bottom: 0.75rem; display: block; color: var(--text-dark);">
+                        Email (for Password Reset)
+                    </label>
+                    <div style="position: relative;">
+                        <i class="fa-solid fa-envelope"
+                            style="position: absolute; left: 1.25rem; top: 50%; transform: translateY(-50%); color: var(--text-light); font-size: 1.1rem; z-index: 2;"></i>
+                        <input type="email" name="email" id="email" class="form-control" autocomplete="off" required
+                            placeholder="staff@example.com"
+                            style="padding: 1rem 1rem 1rem 3.5rem; width: 100%; bg-color: #f8fafc; border: 2px solid #e2e8f0; border-radius: 12px; font-size: 1rem; transition: all 0.3s ease; color: var(--text-dark);">
+                    </div>
+                </div>
+
+                <div class="form-group" style="position: relative; margin-bottom: 1.5rem;">
+                    <label
+                        style="font-weight: 600; font-size: 0.95rem; margin-bottom: 0.75rem; display: block; color: var(--text-dark);">
+                        Password
+                        <span id="passHint"
+                            style="font-weight: 400; font-size: 0.85rem; color: var(--text-light); margin-left: 0.5rem; display:none;">
+                            (Leave empty to keep current)
+                        </span>
+                    </label>
+                    <div style="position: relative;">
+                        <i class="fa-solid fa-lock"
+                            style="position: absolute; left: 1.25rem; top: 50%; transform: translateY(-50%); color: var(--text-light); font-size: 1.1rem; z-index: 2;"></i>
+                        <input type="password" name="password" id="password" class="form-control"
+                            autocomplete="new-password" placeholder="••••••••"
+                            style="padding: 1rem 1rem 1rem 3.5rem; width: 100%; bg-color: #f8fafc; border: 2px solid #e2e8f0; border-radius: 12px; font-size: 1rem; transition: all 0.3s ease; color: var(--text-dark);">
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label
+                        style="font-weight: 500; font-size: 0.9rem; margin-bottom: 0.75rem; display: block; color: var(--text-secondary);">Access
+                        Permissions</label>
+                    <div style="display: flex; flex-direction: column; gap: 0.75rem;">
+
+                        <label class="perm-card"
+                            style="display: flex; align-items: center; gap: 1rem; padding: 0.75rem; border: 1px solid var(--border-color); border-radius: 8px; cursor: pointer; transition: all 0.2s;">
+                            <input type="checkbox" name="permissions" value="manage_settings"
+                                style="width: 1.25rem; height: 1.25rem; accent-color: var(--primary-color);">
+                            <div>
+                                <div style="font-weight: 500; color: var(--text-primary);">Manage Settings</div>
+                                <div style="font-size: 0.75rem; color: var(--text-secondary);">Edit shop profile &
+                                    categories</div>
+                            </div>
+                        </label>
+
+                        <label class="perm-card"
+                            style="display: flex; align-items: center; gap: 1rem; padding: 0.75rem; border: 1px solid var(--border-color); border-radius: 8px; cursor: pointer; transition: all 0.2s;">
+                            <input type="checkbox" name="permissions" value="delete_bill"
+                                style="width: 1.25rem; height: 1.25rem; accent-color: var(--primary-color);">
+                            <div>
+                                <div style="font-weight: 500; color: var(--text-primary);">Delete Bills</div>
+                                <div style="font-size: 0.75rem; color: var(--text-secondary);">Can remove order records
+                                </div>
+                            </div>
+                        </label>
+
+                        <label class="perm-card"
+                            style="display: flex; align-items: center; gap: 1rem; padding: 0.75rem; border: 1px solid var(--border-color); border-radius: 8px; cursor: pointer; transition: all 0.2s;">
+                            <input type="checkbox" name="permissions" value="delete_customer"
+                                style="width: 1.25rem; height: 1.25rem; accent-color: var(--primary-color);">
+                            <div>
+                                <div style="font-weight: 500; color: var(--text-primary);">Delete Customers</div>
+                                <div style="font-size: 0.75rem; color: var(--text-secondary);">Can remove customer
+                                    profiles</div>
+                            </div>
+                        </label>
+
+                    </div>
+                </div>
+
+                <div style="display: flex; flex-direction: column; gap: 0.75rem; margin-top: 2rem;">
+                    <button type="submit" class="btn btn-primary"
+                        style="width: 100%; justify-content: center; padding: 0.875rem; font-weight: 600; border-radius: 8px;">
+                        <i class="fa-solid fa-check-circle" style="margin-right: 0.5rem;"></i> Save Staff Member
+                    </button>
+                    <button type="button" id="cancelEdit" class="btn"
+                        style="width: 100%; justify-content: center; background: #f1f5f9; color: var(--text-secondary); font-weight: 500; border-radius: 8px; display: none;"
+                        onclick="resetForm()">
+                        Cancel Editing
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<script>
+    function editUser(id, name, email, perms) {
+        // Change Form Mode
+        document.getElementById('formTitle').innerText = 'Edit User: ' + name;
+        document.getElementById('userForm').action = "{{ url_for('update_user_permissions') }}";
+
+        document.getElementById('user_id').value = id;
+        document.getElementById('username').value = name;
+        document.getElementById('email').value = email || ''; // Handle null email
+        document.getElementById('username').readOnly = true; // Cannot change username
+
+        document.getElementById('password').name = 'new_password';
+        document.getElementById('password').required = false;
+        document.getElementById('passHint').style.display = 'inline';
+
+        document.getElementById('cancelEdit').style.display = 'flex';
+
+        // Reset Checks
+        document.querySelectorAll('input[name="permissions"]').forEach(cb => cb.checked = false);
+
+        // Apply Checks
+        if (perms) {
+            const pList = perms.split(',');
+            pList.forEach(p => {
+                const cb = document.querySelector(`input[name="permissions"][value="${p}"]`);
+                if (cb) cb.checked = true;
+            });
+        }
+    }
+
+    function resetForm() {
+        document.getElementById('formTitle').innerText = 'Create New Staff';
+        document.getElementById('userForm').action = "{{ url_for('create_user') }}";
+        document.getElementById('userForm').reset();
+
+        document.getElementById('username').readOnly = false;
+        document.getElementById('password').name = 'password';
+        document.getElementById('password').required = true;
+        document.getElementById('passHint').style.display = 'none';
+
+        document.getElementById('cancelEdit').style.display = 'none';
+    }
+</script>
+{% endblock %}

@@ -1,0 +1,318 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Login - Taivex</title>
+    <!-- Use the same fonts as the rest of the app -->
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
+    <style>
+        :root {
+            --primary-color: #3b82f6;
+            --text-dark: #1e293b;
+            --text-light: #64748b;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Outfit', sans-serif;
+        }
+
+        body {
+            height: 100vh;
+            display: flex;
+            background: white;
+            overflow: hidden;
+        }
+
+        /* Left Side - Branding */
+        .brand-section {
+            flex: 1;
+            background: linear-gradient(135deg, #1e3a8a 0%, #3b82f6 100%);
+            position: relative;
+            display: flex;
+            flex-direction: column;
+            padding: 60px;
+            color: white;
+            overflow: hidden;
+        }
+
+        /* Decorative circles/lines */
+        .brand-section::before {
+            content: '';
+            position: absolute;
+            top: -10%;
+            right: -10%;
+            width: 500px;
+            height: 500px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 50%;
+        }
+
+        .brand-section::after {
+            content: '';
+            position: absolute;
+            bottom: -10%;
+            left: -10%;
+            width: 600px;
+            height: 600px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 50%;
+        }
+
+        .brand-logo-top {
+            font-size: 2rem;
+            font-weight: 700;
+            z-index: 10;
+        }
+
+        .brand-content {
+            margin-top: auto;
+            margin-bottom: auto;
+            z-index: 10;
+        }
+
+        .brand-icon-large {
+            font-size: 4rem;
+            margin-bottom: 20px;
+            display: block;
+        }
+
+        .brand-title {
+            font-size: 3.5rem;
+            font-weight: 700;
+            line-height: 1.2;
+            margin-bottom: 20px;
+        }
+
+        .brand-desc {
+            font-size: 1.1rem;
+            opacity: 0.9;
+            max-width: 400px;
+            line-height: 1.6;
+        }
+
+        .brand-footer {
+            margin-top: auto;
+            opacity: 0.6;
+            font-size: 0.9rem;
+            z-index: 10;
+        }
+
+        /* Right Side - Login Form */
+        .login-section {
+            width: 500px;
+            /* Base width */
+            flex-shrink: 0;
+            background: white;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            padding: 60px;
+            position: relative;
+        }
+
+        .login-header-logo {
+            position: absolute;
+            top: 40px;
+            right: 40px;
+            font-weight: 700;
+            font-size: 1.2rem;
+            color: var(--text-dark);
+        }
+
+        .login-box {
+            width: 100%;
+            max-width: 380px;
+            margin: 0 auto;
+        }
+
+        .welcome-title {
+            font-size: 2rem;
+            font-weight: 700;
+            color: var(--text-dark);
+            margin-bottom: 10px;
+        }
+
+        .welcome-sub {
+            color: var(--text-light);
+            font-size: 0.95rem;
+            margin-bottom: 30px;
+            line-height: 1.5;
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        .form-control {
+            width: 100%;
+            padding: 12px 0;
+            border: none;
+            border-bottom: 1px solid #e2e8f0;
+            outline: none;
+            font-size: 1rem;
+            color: var(--text-dark);
+            transition: border-color 0.3s;
+        }
+
+        .form-control:focus {
+            border-bottom-color: var(--primary-color);
+        }
+
+        .form-label {
+            display: none;
+            /* Placeholder style */
+        }
+
+        .btn-login {
+            width: 100%;
+            padding: 14px;
+            background: #1e293b;
+            /* Dark like the screenshot */
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-weight: 600;
+            font-size: 1rem;
+            cursor: pointer;
+            margin-top: 10px;
+            transition: background 0.3s;
+        }
+
+        .btn-login:hover {
+            background: #0f172a;
+        }
+
+        .btn-google {
+            width: 100%;
+            padding: 14px;
+            background: white;
+            color: var(--text-dark);
+            border: 1px solid #e2e8f0;
+            border-radius: 8px;
+            font-weight: 500;
+            font-size: 1rem;
+            cursor: not-allowed;
+            margin-top: 15px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+            opacity: 0.7;
+        }
+
+        .forgot-link {
+            display: block;
+            text-align: center;
+            margin-top: 20px;
+            color: var(--text-light);
+            text-decoration: none;
+            font-size: 0.9rem;
+        }
+
+        .forgot-link strong {
+            color: var(--text-dark);
+        }
+
+        .alert {
+            padding: 10px 15px;
+            border-radius: 6px;
+            margin-bottom: 20px;
+            font-size: 0.9rem;
+        }
+
+        .alert-error {
+            background-color: #fee2e2;
+            color: #991b1b;
+        }
+
+        .alert-info {
+            background-color: #eff6ff;
+            color: #1e40af;
+        }
+
+        @media (max-width: 900px) {
+            .brand-section {
+                display: none;
+            }
+
+            .login-section {
+                width: 100%;
+            }
+        }
+    </style>
+</head>
+
+<body>
+
+    <!-- Left Branding Section -->
+    <div class="brand-section">
+        <div class="brand-logo-top"><i class="fa-solid fa-asterisk"></i></div>
+
+        <div class="brand-content">
+            <i class="fa-solid fa-scissors brand-icon-large"></i>
+            <h1 class="brand-title">Hello<br>Taivex! 👋</h1>
+            <p class="brand-desc">
+                Conquer Fits with precision. Manage customers, orders, and measurements seamlessly in one place.
+            </p>
+        </div>
+
+        <div class="brand-footer">
+            &copy; 2025 Taivex. All rights reserved.
+        </div>
+    </div>
+
+    <!-- Right Login Section -->
+    <div class="login-section">
+        <div class="login-header-logo">Taivex</div>
+
+        <div class="login-box">
+
+            {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+            {% for category, message in messages %}
+            <div class="alert alert-{{ 'error' if category == 'error' else 'info' }}">
+                {{ message }}
+            </div>
+            {% endfor %}
+            {% endif %}
+            {% endwith %}
+
+            <h2 class="welcome-title">Welcome Back!</h2>
+            <p class="welcome-sub">Login with your <strong style="color: var(--primary-color);">Master Admin</strong> or
+                <strong>Staff</strong> credentials.
+            </p>
+
+            <form action="{{ url_for('login') }}" method="POST">
+
+                <div class="form-group">
+                    <input type="text" name="username" class="form-control" placeholder="Username" required autofocus>
+                </div>
+
+                <div class="form-group">
+                    <input type="password" name="password" class="form-control" placeholder="Password" required>
+                </div>
+
+                <button type="submit" class="btn-login">Login Now</button>
+            </form>
+
+            <a href="{{ url_for('google_login') }}" class="btn-google"
+                style="text-decoration: none; display: flex; align-items: center; justify-content: center; opacity: 1; cursor: pointer;">
+                <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" alt="G" width="20">
+                Login with Google
+            </a>
+
+            <a href="{{ url_for('forgot_password') }}" class="forgot-link">Forget password <strong>Click
+                    here</strong></a>
+        </div>
+    </div>
+
+</body>
+
+</html>

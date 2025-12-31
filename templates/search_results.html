@@ -1,0 +1,109 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="page-header" style="margin-bottom: 2rem;">
+    <h2 style="font-size: 1.5rem; font-weight: 600;">Search Results</h2>
+    <p style="color: var(--text-secondary);">Showing results for "{{ query }}"</p>
+</div>
+
+<!-- Customers Results -->
+<div class="card" style="margin-bottom: 2rem;">
+    <div class="card-header"
+        style="border-bottom: 1px solid var(--border-color); padding-bottom: 1rem; margin-bottom: 1rem;">
+        <h3 style="font-size: 1.1rem; font-weight: 600;">Customers ({{ customers|length }})</h3>
+    </div>
+
+    {% if customers %}
+    <div class="table-container">
+        <table>
+            <thead>
+                <tr>
+                    <th>Name</th>
+                    <th>Mobile</th>
+                    <th>City</th>
+                    <th>Action</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for c in customers %}
+                <tr>
+                    <td style="font-weight: 600;">{{ c.name }}</td>
+                    <td>{{ c.mobile }}</td>
+                    <td>{{ c.city }}</td>
+                    <td>
+                        <button onclick="openProfile('{{ c.id }}')" class="btn btn-sm btn-primary">
+                            View Profile
+                        </button>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% else %}
+    <p style="color: var(--text-secondary); font-style: italic;">No matching customers found.</p>
+    {% endif %}
+</div>
+
+<!-- Orders Results -->
+<div class="card">
+    <div class="card-header"
+        style="border-bottom: 1px solid var(--border-color); padding-bottom: 1rem; margin-bottom: 1rem;">
+        <h3 style="font-size: 1.1rem; font-weight: 600;">Orders ({{ orders|length }})</h3>
+    </div>
+
+    {% if orders %}
+    <div class="table-container">
+        <table>
+            <thead>
+                <tr>
+                    <th>SR No.</th>
+                    <th>Date</th>
+                    <th>Customer</th>
+                    <th>Items</th>
+                    <th>Status</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for o in orders %}
+                <tr>
+                    <td>{{ loop.index }}</td>
+                    <!-- You might want to show actual Order ID here for reference, but SR No requested -->
+                    <td>{{ o.created_at.strftime('%Y-%m-%d') }}</td>
+                    <td>{{ o.customer.name }}</td>
+                    <td>
+                        {% for item in o.items %}
+                        <span class="badge badge-secondary">{{ item.name }}</span>
+                        {% endfor %}
+                    </td>
+                    <td>{{ o.status }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% else %}
+    <p style="color: var(--text-secondary); font-style: italic;">No matching orders found.</p>
+    {% endif %}
+</div>
+
+<!-- Re-use Profile Modal from customers page (simplified inclusion or redirect) -->
+<!-- Ideally, the profile modal logic should be in base or included. 
+     For now, we'll just redirect to customers page with an anchor if possible, 
+     or just let them click 'View Profile' which triggers the JS.
+     NOTE: openProfile relies on JS functions present in customers.html. 
+     We might need to duplicate that JS or move it to base.js. 
+     For this MVP, let's keep it simple: Link to customer detail page.
+-->
+
+<script>
+    function openProfile(id) {
+        // Since we don't have the full modal code here, 
+        // let's redirect to the customers page with a query param or just alert for now 
+        // UNLESS we replicate the modal. 
+        // Better approach: Redirect to customers page to open it.
+        window.location.href = "{{ url_for('customers') }}?open_id=" + id;
+    }
+</script>
+
+{% endblock %}

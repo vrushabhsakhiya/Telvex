@@ -1,0 +1,374 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Invoice {{ order.id }}</title>
+    <style>
+        @media print {
+            body {
+                -webkit-print-color-adjust: exact;
+                print-color-adjust: exact;
+            }
+
+            .no-print {
+                display: none;
+            }
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            margin: 0;
+            padding: 2rem;
+            color: #1f2937;
+            background: #f3f4f6;
+        }
+
+        .invoice-container {
+            max-width: 800px;
+            margin: 0 auto;
+            background: white;
+            padding: 3rem;
+            border-radius: 8px;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+        }
+
+        .header {
+            text-align: center;
+            border-bottom: 2px solid #e5e7eb;
+            padding-bottom: 2rem;
+            margin-bottom: 2rem;
+        }
+
+        .shop-name {
+            font-size: 2rem;
+            font-weight: 800;
+            color: #111827;
+            margin: 0;
+        }
+
+        .shop-meta {
+            color: #4b5563;
+            margin-top: 0.5rem;
+            line-height: 1.5;
+        }
+
+        .invoice-details {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 2rem;
+        }
+
+        .customer-info h4,
+        .invoice-meta h4 {
+            margin: 0 0 0.5rem 0;
+            color: #6b7280;
+            text-transform: uppercase;
+            font-size: 0.875rem;
+            letter-spacing: 0.05em;
+        }
+
+        .info-value {
+            font-weight: 600;
+            font-size: 1.125rem;
+        }
+
+        .bill-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 2rem;
+        }
+
+        .bill-table th {
+            text-align: left;
+            padding: 1rem;
+            background: #f9fafb;
+            border-bottom: 1px solid #e5e7eb;
+            font-weight: 600;
+            color: #374151;
+        }
+
+        .bill-table td {
+            padding: 1rem;
+            border-bottom: 1px solid #e5e7eb;
+        }
+
+        .totals {
+            margin-left: auto;
+            width: 300px;
+        }
+
+        .total-row {
+            display: flex;
+            justify-content: space-between;
+            padding: 0.5rem 0;
+            font-weight: 500;
+        }
+
+        .total-row.final {
+            border-top: 2px solid #111827;
+            margin-top: 0.5rem;
+            padding-top: 1rem;
+            font-size: 1.25rem;
+            font-weight: 800;
+        }
+
+        .footer {
+            margin-top: 3rem;
+            padding-top: 2rem;
+            border-top: 1px solid #e5e7eb;
+            font-size: 0.875rem;
+            color: #6b7280;
+        }
+
+        .terms {
+            white-space: pre-line;
+            /* Respect newlines in terms */
+        }
+    </style>
+</head>
+
+<body style="background: #e5e7eb; padding: 2rem 0;">
+
+    <!-- Control Toolbar (No Print) -->
+    {% if not download_mode %}
+    <div class="no-print"
+        style="position: fixed; top: 0; left: 0; right: 0; background: #1f2937; padding: 1rem; display: flex; justify-content: center; gap: 1rem; box-shadow: 0 4px 6px rgba(0,0,0,0.1); z-index: 1000;">
+        <button onclick="window.print()"
+            style="background: white; color: #1f2937; border: none; padding: 0.6rem 1.25rem; border-radius: 6px; cursor: pointer; font-weight: 600; display: flex; align-items: center; gap: 0.5rem; transition: transform 0.1s;">
+            <i class="fa-solid fa-print"></i> Print
+        </button>
+        <a href="{{ url_for('download_invoice', id=order.id) }}"
+            style="background: #3b82f6; color: white; text-decoration: none; padding: 0.6rem 1.25rem; border-radius: 6px; font-weight: 600; display: flex; align-items: center; gap: 0.5rem; transition: transform 0.1s;">
+            <i class="fa-solid fa-download"></i> Save
+        </a>
+        <button onclick="shareInvoice()"
+            style="background: #10b981; color: white; border: none; padding: 0.6rem 1.25rem; border-radius: 6px; cursor: pointer; font-weight: 600; display: flex; align-items: center; gap: 0.5rem; transition: transform 0.1s;">
+            <i class="fa-solid fa-share-nodes"></i> Share
+        </button>
+        <button onclick="window.close()"
+            style="background: #ef4444; color: white; border: none; padding: 0.6rem 1.25rem; border-radius: 6px; cursor: pointer; font-weight: 600;">
+            Close
+        </button>
+    </div>
+    <div class="no-print" style="height: 60px;"></div> <!-- Spacer -->
+    {% endif %}
+
+    <!-- Invoice Paper -->
+    <div class="invoice-container" id="invoiceContent"
+        style="background: white; max-width: 210mm; margin: 0 auto; padding: 40px; box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1); min-height: 297mm; position: relative;">
+
+        <!-- Header Section -->
+        <div
+            style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 2rem; border-bottom: 2px solid #e5e7eb; padding-bottom: 2rem;">
+            <!-- Left: Logo & Shop Info -->
+            <div style="flex: 1; {% if not shop.logo %}text-align: center; width: 100%;{% endif %}">
+                {% if shop.logo %}
+                <img src="{{ url_for('static', filename=shop.logo) }}" alt="Logo"
+                    style="height: 80px; max-width: 200px; object-fit: contain; margin-bottom: 1rem;">
+                <h1 style="font-size: 1.75rem; font-weight: 800; color: #111827; margin: 0; line-height: 1.2;">{{
+                    shop.shop_name or 'My Shop' }}</h1>
+                {% else %}
+                <h1
+                    style="font-size: 2.5rem; font-weight: 800; color: #111827; margin: 0; letter-spacing: -0.025em; text-transform: uppercase;">
+                    {{ shop.shop_name or 'My Shop' }}</h1>
+                {% endif %}
+
+                <div style="color: #4b5563; margin-top: 0.5rem; font-size: 0.95rem; line-height: 1.5;">
+                    {% if shop.address %}{{ shop.address }}<br>{% endif %}
+                    {% if shop.mobile %}<strong>Mobile:</strong> {{ shop.mobile }}<br>{% endif %}
+                    {% if shop.gst_no %}<strong>GSTIN:</strong> {{ shop.gst_no }}{% endif %}
+                </div>
+            </div>
+
+            <!-- Right: Invoice Meta (Only to the right if logo exists, otherwise nice balanced layout below name?) 
+                 Actually, keeping invoice meta always top-right looks professional regardless of logo.
+                 But user asked 'if not logo show name in center'. Let's do a conditional layout. -->
+
+            {% if shop.logo %}
+            <div style="text-align: right; min-width: 200px;">
+                <h2 style="font-size: 2rem; color: #e5e7eb; margin: 0; font-weight: 900; letter-spacing: 0.1em;">INVOICE
+                </h2>
+                <div style="margin-top: 1rem;">
+                    <div
+                        style="color: #6b7280; font-size: 0.875rem; text-transform: uppercase; letter-spacing: 0.05em;">
+                        Invoice No</div>
+                    <div style="font-size: 1.25rem; font-weight: 700; color: #111827;">{{ '%04d' % order.id }}</div>
+                </div>
+                <div style="margin-top: 0.5rem;">
+                    <div
+                        style="color: #6b7280; font-size: 0.875rem; text-transform: uppercase; letter-spacing: 0.05em;">
+                        Date</div>
+                    <div style="font-size: 1.125rem; font-weight: 600; color: #374151;">{{ order.created_at.strftime('%d
+                        %b, %Y') }}</div>
+                </div>
+            </div>
+            {% endif %}
+        </div>
+
+        <!-- If No Logo, Render Invoice Meta Below Center Header -->
+        {% if not shop.logo %}
+        <div
+            style="display: flex; justify-content: space-between; margin-bottom: 3rem; background: #f9fafb; padding: 1.5rem; border-radius: 8px;">
+            <div>
+                <div style="color: #6b7280; font-size: 0.875rem; text-transform: uppercase; letter-spacing: 0.05em;">
+                    Invoice No</div>
+                <div style="font-size: 1.25rem; font-weight: 700; color: #111827;">{{ '%04d' % order.id }}</div>
+            </div>
+            <div style="text-align: right;">
+                <div style="color: #6b7280; font-size: 0.875rem; text-transform: uppercase; letter-spacing: 0.05em;">
+                    Date</div>
+                <div style="font-size: 1.25rem; font-weight: 700; color: #111827;">{{ order.created_at.strftime('%d %b,
+                    %Y') }}</div>
+            </div>
+        </div>
+        {% endif %}
+
+        <!-- Bill To -->
+        <div style="margin-bottom: 2rem;">
+            <div
+                style="color: #6b7280; font-size: 0.875rem; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 0.5rem;">
+                Bill To</div>
+            <div style="font-size: 1.25rem; font-weight: 700; color: #111827; margin-bottom: 0.25rem;">{{
+                order.customer.name }}</div>
+            <div style="color: #4b5563;">{{ order.customer.mobile }}</div>
+            {% if order.customer.city %}<div style="color: #4b5563;">{{ order.customer.city }}</div>{% endif %}
+        </div>
+
+        <!-- Table -->
+        <table style="width: 100%; border-collapse: collapse; margin-bottom: 2rem;">
+            <thead>
+                <tr style="background: #111827; color: white;">
+                    <th style="padding: 1rem; text-align: left; font-weight: 600; border-radius: 6px 0 0 6px;">Item
+                        Description</th>
+                    <th style="padding: 1rem; text-align: center; font-weight: 600;">Qty</th>
+                    <th style="padding: 1rem; text-align: right; font-weight: 600; border-radius: 0 6px 6px 0;">Amount
+                    </th>
+                </tr>
+            </thead>
+            <tbody>
+                {% if order.items %}
+                {% for item in order.items %}
+                <tr style="border-bottom: 1px solid #e5e7eb;">
+                    <td style="padding: 1rem; color: #111827; font-weight: 500;">
+                        {{ item.name }}
+                        {% if order.work_status == 'Ready to Deliver' or order.work_status == 'Delivered' %}
+                        <div style="font-size: 0.75rem; color: #10b981; margin-top: 2px;">
+                            <i class="fa-solid fa-check-circle"></i> Item Ready
+                        </div>
+                        {% endif %}
+                    </td>
+                    <td style="padding: 1rem; text-align: center; color: #4b5563;">{{ item.qty or 1 }}</td>
+                    <td style="padding: 1rem; text-align: right; color: #111827; font-weight: 600;">₹{{ order.total_amt
+                        }}</td>
+                </tr>
+                {% endfor %}
+                {% else %}
+                <tr style="border-bottom: 1px solid #e5e7eb;">
+                    <td style="padding: 1rem; color: #111827; font-weight: 500;">Custom Tailoring</td>
+                    <td style="padding: 1rem; text-align: center; color: #4b5563;">1</td>
+                    <td style="padding: 1rem; text-align: right; color: #111827; font-weight: 600;">₹{{ order.total_amt
+                        }}</td>
+                </tr>
+                {% endif %}
+            </tbody>
+        </table>
+
+        <!-- Footer Grid: Terms | Totals -->
+        <div style="display: flex; gap: 2rem; align-items: flex-start;">
+
+            <!-- Left: Terms & Payment Info -->
+            <div style="flex: 1;">
+                <h4 style="margin: 0 0 0.5rem 0; color: #111827; font-size: 0.9rem;">Terms & Conditions:</h4>
+                <div style="font-size: 0.8rem; color: #6b7280; white-space: pre-line; line-height: 1.4;">{{ shop.terms
+                    or 'Subject to realization of payment.' }}</div>
+
+                {% if shop.upi_id %}
+                <div
+                    style="margin-top: 1.5rem; border: 1px dashed #d1d5db; padding: 1rem; border-radius: 6px; display: inline-block;">
+                    <div style="font-size: 0.75rem; color: #6b7280; font-weight: 600;">SCAN TO PAY</div>
+                    <!-- Placeholder for QR -->
+                    <div style="font-size: 0.9rem; font-weight: 700; color: #111827; margin-top: 0.25rem;">{{
+                        shop.upi_id }}</div>
+                </div>
+                {% endif %}
+            </div>
+
+            <!-- Right: Totals -->
+            <div style="width: 300px;">
+                <div
+                    style="display: flex; justify-content: space-between; padding: 0.75rem 0; border-bottom: 1px solid #e5e7eb;">
+                    <span style="color: #4b5563;">Total Amount</span>
+                    <span style="font-weight: 600; color: #111827;">₹{{ order.total_amt }}</span>
+                </div>
+                <div
+                    style="display: flex; justify-content: space-between; padding: 0.75rem 0; border-bottom: 1px solid #e5e7eb; color: #059669;">
+                    <span>Received</span>
+                    <span style="font-weight: 600;">₹{{ order.advance }}</span>
+                </div>
+                <div
+                    style="display: flex; justify-content: space-between; padding: 1rem 0; font-size: 1.25rem; font-weight: 800; color: {% if order.balance > 0 %}#dc2626{% else %}#111827{% endif %};">
+                    <span>Balance Due</span>
+                    <span>₹{{ order.balance }}</span>
+                </div>
+
+                <!-- Authorized Signatory Stamp Area (Footer Right) -->
+                <div style="margin-top: 3rem; text-align: center;">
+                    {% if shop.logo and 'left' not in 'standard' %}
+                    <!-- If user wanted logo in footer, we could put it here, but sticking to text signature for professional look -->
+                    {% endif %}
+                    <div
+                        style="font-family: 'Cursive', serif; font-size: 1.5rem; color: #111827; opacity: 0.8; margin-bottom: 0.5rem;">
+                        {{ shop.shop_name }}</div>
+                    <div style="border-top: 1px solid #111827; width: 80%; margin: 0 auto;"></div>
+                    <div
+                        style="font-size: 0.75rem; color: #6b7280; margin-top: 0.25rem; font-weight: 600; text-transform: uppercase;">
+                        Authorized Signatory</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Bottom: Thank You -->
+        <div
+            style="position: absolute; bottom: 40px; left: 40px; right: 40px; text-align: center; color: #9ca3af; font-size: 0.875rem;">
+            Thank you for choosing {{ shop.shop_name or 'us' }}!
+        </div>
+
+    </div>
+
+    <!-- FontAwesome for Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
+    <script>
+        async function shareInvoice() {
+            try {
+                // Get HTML content
+                const content = document.documentElement.outerHTML;
+
+                // Create a File object
+                const blob = new Blob([content], { type: 'text/html' });
+                const file = new File([blob], "Bill_{{ order.customer.name|replace(' ', '_') }}.html", { type: 'text/html' });
+
+                // Check if sharing is supported
+                if (navigator.share && navigator.canShare && navigator.canShare({ files: [file] })) {
+                    await navigator.share({
+                        files: [file],
+                        title: 'Invoice for {{ order.customer.name }}',
+                        text: 'Here is your invoice from {{ shop.shop_name }}.',
+                    });
+                } else {
+                    // Fallback to WhatsApp Text if file sharing fails or not supported
+                    // Note: Cannot attach file via direct URL scheme 
+                    const text = `Hello {{ order.customer.name }},%0A%0AHere is your bill details:%0AOrder ID: {{ order.id }}%0ATotal: ₹{{ order.total_amt }}%0ABalance: ₹{{ order.balance }}%0A%0AFrom: {{ shop.shop_name }}`;
+                    window.open(`https://wa.me/{{ order.customer.mobile }}?text=${text}`, '_blank');
+                }
+            } catch (error) {
+                console.log('Error sharing:', error);
+                alert('Sharing failed or cancelled.');
+            }
+        }
+    </script>
+</body>
+
+</html>

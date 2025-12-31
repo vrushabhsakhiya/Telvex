@@ -1,0 +1,269 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<!-- Upper Row: Yearly & Key Stats -->
+<h3 style="margin-bottom: 1rem; color: var(--text-primary);">Yearly Overview</h3>
+<div class="stats-grid">
+    <!-- Card 1: Total Customers -->
+    <div class="card stat-card">
+        <h3>Total Customers</h3>
+        <div class="stat-value">{{ "{:,}".format(stats.total_customers) }}</div>
+        <div class="stat-trend positive">
+            <i class="fa-solid fa-users"></i> All Time
+        </div>
+    </div>
+
+    <!-- Card 2: Yearly Revenue -->
+    <div class="card stat-card">
+        <h3>Yearly Revenue</h3>
+        <div class="stat-value">₹{{ "{:,.0f}".format(stats.yearly_revenue) }}</div>
+        <div class="stat-trend positive">
+            <i class="fa-solid fa-indian-rupee-sign"></i> This Year
+        </div>
+    </div>
+
+    <!-- Card 3: Pending Balance (Total) -->
+    <div class="card stat-card">
+        <h3>Total Pending Balance</h3>
+        <div class="stat-value">₹{{ "{:,.0f}".format(stats.pending_balance) }}</div>
+        <div class="stat-trend warning">
+            <i class="fa-solid fa-circle-exclamation"></i> Total Outstanding
+        </div>
+    </div>
+
+    <!-- Card 4: Pending Delivery (Total) -->
+    <div class="card stat-card">
+        <h3>Pending Delivery</h3>
+        <div class="stat-value">{{ stats.pending_delivery }}</div>
+        <div class="stat-trend warning">
+            <i class="fa-solid fa-clock"></i> +{{ stats.delivery_today }} today
+        </div>
+    </div>
+</div>
+
+<!-- Lower Row: Monthly Report -->
+<h3 style="margin-top: 2rem; margin-bottom: 1rem; color: var(--text-primary);">Monthly Report</h3>
+<div class="stats-grid">
+    <!-- Card 1: Monthly Customers -->
+    <div class="card stat-card">
+        <h3>Monthly Customers</h3>
+        <div class="stat-value">{{ stats.monthly_customers }}</div>
+        <div class="stat-trend positive">
+            <i class="fa-solid fa-user-plus"></i> This Month
+        </div>
+    </div>
+
+    <!-- Card 2: Monthly Pending -->
+    <div class="card stat-card">
+        <h3>Monthly Pending</h3>
+        <div class="stat-value">₹{{ "{:,.0f}".format(stats.monthly_pending) }}</div>
+        <div class="stat-trend warning">
+            <i class="fa-solid fa-clock"></i> This Month
+        </div>
+    </div>
+
+    <!-- Card 3: Monthly Revenue -->
+    <div class="card stat-card">
+        <h3>Monthly Revenue</h3>
+        <div class="stat-value">₹{{ "{:,.0f}".format(stats.monthly_revenue) }}</div>
+        <div class="stat-trend positive">
+            <i class="fa-solid fa-indian-rupee-sign"></i> This Month
+        </div>
+    </div>
+
+    <!-- Card 4: Today's Delivery (New) -->
+    <a href="{{ url_for('orders', delivery_date='today') }}" style="text-decoration: none; color: inherit;">
+        <div class="card stat-card" style="cursor: pointer; transition: transform 0.2s;">
+            <h3>Today's Delivery</h3>
+            <div class="stat-value">{{ stats.delivery_today }}</div>
+            <div class="stat-trend warning">
+                <i class="fa-solid fa-truck-fast"></i> Due Today
+            </div>
+        </div>
+    </a>
+</div>
+
+<!-- Urgent Reminders Widget (New) -->
+{% if urgent_reminders %}
+<div class="card" style="margin-bottom: 2rem; border-left: 5px solid var(--danger-color); margin-top: 2rem;">
+    <div class="card-header" style="padding-bottom: 0.5rem; justify-content: flex-start; gap: 0.5rem;">
+        <i class="fa-solid fa-bell" style="color: var(--danger-color);"></i>
+        <div class="card-title" style="color: var(--danger-color); font-size: 1rem;">Urgent Reminders ({{
+            urgent_reminders|length }})</div>
+    </div>
+    <div class="reminder-scroller" style="max-height: 150px; overflow-y: auto;">
+        {% for rem in urgent_reminders %}
+        <div
+            style="display: flex; justify-content: space-between; align-items: center; padding: 0.75rem 0; border-bottom: 1px solid rgba(0,0,0,0.05);">
+            <div style="display: flex; align-items: center; gap: 0.75rem;">
+                <div
+                    style="width: 32px; height: 32px; border-radius: 50%; background: #fff; border: 1px solid {{ rem.color }}; color: {{ rem.color }}; display: flex; align-items: center; justify-content: center; flex-shrink: 0;">
+                    <i class="fa-solid {{ rem.icon }}"></i>
+                </div>
+                <div>
+                    <strong style="display: block; font-size: 0.95rem;">{{ rem.title }}</strong>
+                    <span style="font-size: 0.8rem; color: var(--text-secondary);">{{ rem.desc }}</span>
+                </div>
+            </div>
+            <div>
+                <a href="{{ rem.link }}" class="btn btn-sm btn-outline"
+                    style="font-size: 0.75rem; border-color: var(--border-color); color: var(--text-primary);">View</a>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+{% endif %}
+
+<!-- Middle Row: Lists -->
+<div class="grid-layout-middle"
+    style="display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem; margin-bottom: 2rem;">
+    <!-- Upcoming Deliveries -->
+    <div class="card">
+        <div class="card-header">
+            <div class="card-title">Upcoming Deliveries (Next 7 Days)</div>
+        </div>
+        <div class="list-group" style="display: flex; flex-direction: column; gap: 0.75rem;">
+            {% for order in upcoming_deliveries %}
+            <div
+                style="display: flex; justify-content: space-between; align-items: center; padding-bottom: 0.5rem; border-bottom: 1px solid #f3f4f6;">
+                <div>
+                    <div style="font-weight: 500;">{{ order.customer.name }}</div>
+                    <div style="font-size: 0.8rem; color: var(--text-secondary);">{{ order.items[0].name }} ({{
+                        order.items|length }} items)</div>
+                </div>
+                <div style="text-align: right;">
+                    <div style="font-weight: 600; color: var(--primary-color);">{{ order.delivery_date.strftime('%d %b')
+                        }}</div>
+                    <div style="font-size: 0.75rem; color: var(--text-secondary);">{{ order.delivery_date.strftime('%a')
+                        }}</div>
+                </div>
+            </div>
+            {% else %}
+            <div style="color: var(--text-secondary); text-align: center; padding: 1rem;">No upcoming deliveries.</div>
+            {% endfor %}
+        </div>
+    </div>
+
+    <!-- Top Customers -->
+    <div class="card">
+        <div class="card-header">
+            <div class="card-title">Top Customers</div>
+        </div>
+        <div class="list-group" style="display: flex; flex-direction: column; gap: 0.75rem;">
+            {% for cust, spend in top_customers %}
+            <div
+                style="display: flex; justify-content: space-between; align-items: center; padding-bottom: 0.5rem; border-bottom: 1px solid #f3f4f6;">
+                <div style="display: flex; align-items: center; gap: 0.75rem;">
+                    <div
+                        style="width: 32px; height: 32px; background: #E0E7FF; color: var(--primary-color); border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: bold;">
+                        {{ cust.name[0] }}
+                    </div>
+                    <div>
+                        <div style="font-weight: 500;">{{ cust.name }}</div>
+                        <div style="font-size: 0.8rem; color: var(--text-secondary);">{{ cust.mobile }}</div>
+                    </div>
+                </div>
+                <div style="font-weight: 600;">₹{{ "{:,.0f}".format(spend) }}</div>
+            </div>
+            {% else %}
+            <div style="color: var(--text-secondary); text-align: center; padding: 1rem;">No data yet.</div>
+            {% endfor %}
+        </div>
+    </div>
+</div>
+
+
+<!-- Bottom Row: Table -->
+<div class="card">
+    <div class="card-header">
+        <div class="card-title">Today's Customers</div>
+        <!-- <div>
+            <button class="btn btn-outline btn-sm" style="border: 1px solid var(--border-color);">Export CSV</button>
+            <button class="btn btn-primary btn-sm">
+                <i class="fa-solid fa-plus"></i> Quick Add
+            </button>
+        </div> -->
+    </div>
+    <div class="table-container">
+        <table>
+            <thead>
+                <tr>
+                    <th>Name</th>
+                    <th>Mobile</th>
+                    <th>Category</th>
+                    <th>Time</th>
+                    <th>Action</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for order in todays_orders %}
+                <tr>
+                    <td>{{ order.customer.name }}</td>
+                    <td>{{ order.customer.mobile }}</td>
+                    <td>
+                        {% for item in order.items %}
+                        {{ item.name }}{% if not loop.last %}, {% endif %}
+                        {% endfor %}
+                    </td>
+                    <td>{{ order.created_at.strftime('%I:%M %p') }}</td>
+                    <td>
+                        <button class="btn btn-sm btn-primary"
+                            onclick="window.location.href='{{ url_for('orders') }}';">View</button>
+                    </td>
+                </tr>
+                {% else %}
+                <tr>
+                    <td colspan="5" style="text-align: center; color: var(--text-secondary); padding: 2rem;">
+                        No orders created today.
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    // Live Dashboard Update (Refresh every 10 seconds)
+    setInterval(function () {
+        if (!document.hidden) {
+            // Using fetch to get the updated page logic - simplistic "live" implementation
+            // In a real SPA we'd fetch JSON stats, but here simply reloading the relevant partial is harder without partial routes.
+            // A full reload is often jarring, but user asked for "live".
+            // A better way is using htmx or fetch->replace.
+            fetch(window.location.href)
+                .then(response => response.text())
+                .then(html => {
+                    const parser = new DOMParser();
+                    const doc = parser.parseFromString(html, 'text/html');
+
+                    // Update Stats Grid
+                    const newStats = doc.querySelector('.stats-grid');
+                    const oldStats = document.querySelector('.stats-grid');
+                    if (newStats && oldStats) oldStats.innerHTML = newStats.innerHTML;
+
+                    // Update Table
+                    const newTable = doc.querySelector('.table-container');
+                    const oldTable = document.querySelector('.table-container');
+                    if (newTable && oldTable) oldTable.innerHTML = newTable.innerHTML;
+
+                    // Update Urgent Reminders
+                    // (Optional: can add logic to update other parts too)
+                })
+                .catch(err => console.error('Auto-refresh error:', err));
+        }
+    }, 5000); // 5 seconds
+</script>
+
+<style>
+    /* Responsive adjustment for middle grid */
+    @media (max-width: 1024px) {
+        .grid-layout-middle {
+            grid-template-columns: 1fr !important;
+        }
+    }
+</style>
+{% endblock %}

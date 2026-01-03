@@ -242,6 +242,7 @@
                 // 2. Toggle & Save
                 themeToggle.addEventListener('click', () => {
                     document.body.classList.toggle('dark-mode');
+                    document.documentElement.classList.toggle('dark-mode');
 
                     // UI Update
                     const isDark = document.body.classList.contains('dark-mode');
@@ -299,10 +300,11 @@
                 }
             }
         });
+    </script>
 
-        <!-- Shop Profile Modal -->
-        {% include 'shop_profile_modal.html' %}
-        <script src="{{ url_for('static', filename='js/script.js') }}"></script>
+    <!-- Shop Profile Modal -->
+    {% include 'shop_profile_modal.html' %}
+    <script src="{{ url_for('static', filename='js/script.js') }}"></script>
     <script src="{{ url_for('static', filename='js/ajax_nav.js') }}"></script>
     <script src="{{ url_for('static', filename='js/custom_scripts.js') }}"></script>
 </body>

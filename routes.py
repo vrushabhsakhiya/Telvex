@@ -6,6 +6,8 @@ from werkzeug.utils import secure_filename
 import os
 import random
 import string
+import hmac
+import hashlib
 from datetime import datetime, timedelta
 from flask_mail import Message
 
@@ -861,6 +863,14 @@ def register_routes(app):
         # Fetch categories based on gender (or all if not specified, but usually gender specific)
         categories = Category.query.filter_by(gender=customer.gender.lower()).all()
 
+        # Handle Reuse Measurement
+        reuse_id = request.args.get('reuse_id')
+        reuse_measurement = None
+        if reuse_id:
+            reuse_measurement = Measurement.query.get(reuse_id)
+            if reuse_measurement and reuse_measurement.customer_id != customer.id:
+                reuse_measurement = None # Security check
+
         if request.method == 'POST':
             # Save Measurement
             cat_id = request.form.get('category_id')
@@ -940,7 +950,7 @@ def register_routes(app):
                     db.session.commit()
 
                     flash('Measurement saved and Order created successfully!', 'success')
-                    return redirect(url_for('orders'))
+                    return redirect(url_for('view_invoice', id=new_order.id))
 
                 except Exception as e:
                     print(e)
@@ -948,7 +958,7 @@ def register_routes(app):
             
             return redirect(url_for('customers'))
 
-        return render_template('measurement.html', customer=customer, categories=categories, active_page='customers')
+        return render_template('measurement.html', customer=customer, categories=categories, active_page='customers', reuse_measurement=reuse_measurement)
 
     @app.route('/measurements')
     @login_required
@@ -1416,13 +1426,37 @@ def register_routes(app):
 
         return render_template('search_results.html', query=query, customers=customers, orders=orders, active_page='dashboard')
 
+    # Helper for Secure Public Links
+    def generate_bill_token(order_id):
+        data = f"bill_view_{order_id}"
+        return hmac.new(app.secret_key.encode(), data.encode(), hashlib.sha256).hexdigest()
+
+    @app.route('/bill/view/<int:id>')
+    def public_bill_view(id):
+        token = request.args.get('token')
+        expected_token = generate_bill_token(id)
+        
+        if not token or not hmac.compare_digest(token, expected_token):
+             return "Invalid or Expired Link", 403
+        
+        order = Order.query.get_or_404(id)
+        from models import ShopProfile
+        shop = ShopProfile.query.first() or ShopProfile()
+        
+        return render_template('invoice.html', order=order, shop=shop, is_public=True)
+
     @app.route('/invoice/<int:id>')
     @login_required
     def view_invoice(id):
         order = Order.query.get_or_404(id)
         from models import ShopProfile
         shop = ShopProfile.query.first() or ShopProfile()
-        return render_template('invoice.html', order=order, shop=shop)
+        
+        # Generate Public Link for Sharing
+        token = generate_bill_token(id)
+        public_url = url_for('public_bill_view', id=id, token=token, _external=True)
+        
+        return render_template('invoice.html', order=order, shop=shop, public_url=public_url)
 
     @app.route('/invoice/<int:id>/download')
     @login_required
@@ -1458,6 +1492,49 @@ def register_routes(app):
             f.write(html_content)
             
         return send_file(filepath, as_attachment=True)
+
+    @app.route('/invoice/<int:id>/save_pdf_copy', methods=['POST'])
+    def save_pdf_copy(id):
+        if 'pdf' not in request.files:
+            return jsonify({'success': False, 'message': 'No file part'}), 400
+            
+        file = request.files['pdf']
+        if file.filename == '':
+             return jsonify({'success': False, 'message': 'No selected file'}), 400
+
+        order = Order.query.get_or_404(id)
+        
+        # Determine Path: saved_bills / YYYY / Month
+        year_str = order.created_at.strftime('%Y')
+        month_str = order.created_at.strftime('%B')
+        folder = os.path.join(app.root_path, 'saved_bills', year_str, month_str)
+        
+        if not os.path.exists(folder):
+            os.makedirs(folder)
+            
+        # Determine Filename
+        date_str = order.created_at.strftime('%d-%m-%Y')
+        sanitized_name = order.customer.name.replace(' ', '_').replace('/', '-')
+        filename = f"Bill_{sanitized_name}_{date_str}_{order.id}.pdf"
+        filepath = os.path.join(folder, filename)
+        
+        try:
+            file.save(filepath)
+            
+            # Remove HTML Copy (if exists) - "Replace HTML with PDF"
+            html_filename = filename.replace('.pdf', '.html')
+            html_filepath = os.path.join(folder, html_filename)
+            if os.path.exists(html_filepath):
+                try:
+                    os.remove(html_filepath)
+                    print(f"Removed old HTML file: {html_filename}")
+                except Exception as del_err:
+                    print(f"Error removing old HTML: {del_err}")
+
+            return jsonify({'success': True, 'message': 'PDF Saved Successfully'})
+        except Exception as e:
+            print(f"Error saving PDF: {e}")
+            return jsonify({'success': False, 'message': str(e)}), 500
         
     @app.route('/export_csv')
     @login_required

@@ -1,6 +1,8 @@
 <!-- Shop Profile Sidebar (Included in Base) -->
 <div id="shopProfileSidebar" class="sidebar-overlay" onclick="toggleModal('shopProfileSidebar')">
+    
     <div class="sidebar-panel" onclick="event.stopPropagation()">
+        
         <div
             style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 2rem; border-bottom: 1px solid var(--border-color); padding-bottom: 1rem;">
             <div>
@@ -37,20 +39,7 @@
         </div>
         {% endif %}
 
-        <div
-            style="margin-top: 2rem; padding-top: 1rem; border-top: 1px solid var(--border-color); display: flex; align-items: center; justify-content: space-between; gap: 1rem;">
-            <!-- Left: Logo -->
-            <div style="flex-shrink: 0;">
-                {% if shop.logo %}
-                <img src="{{ url_for('static', filename=shop.logo) }}" alt="Shop Logo"
-                    style="max-height: 60px; max-width: 80px; object-fit: contain;">
-                {% else %}
-                <div
-                    style="width: 60px; height: 60px; background: #f3f4f6; border-radius: 4px; display: flex; align-items: center; justify-content: center; color: var(--text-secondary);">
-                    <i class="fa-solid fa-store"></i>
-                </div>
-                {% endif %}
-            </div>
+       
 
             <!-- Right: Buttons -->
             <div style="flex-grow: 1;">

@@ -12,7 +12,7 @@
 <div class="card" style="max-width: 800px; margin: 0 auto; min-height: 500px;">
 
     <!-- Step 1: Selection -->
-    <div id="step1" class="step-container">
+    <div id="step1" class="step-container" {% if reuse_measurement %}style="display: none;" {% endif %}>
         <h3 style="margin-bottom: 1.5rem; text-align: center;">Select Category ({{ customer.gender|capitalize }})</h3>
 
         <!-- Categories (Dynamic) -->
@@ -29,25 +29,53 @@
     </div>
 
     <!-- Step 2: Form -->
-    <div id="step2" class="step-container" style="display: none;">
+    <div id="step2" class="step-container" {% if reuse_measurement %}style="display: block;" {% else
+        %}style="display: none;" {% endif %}>
         <div
             style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 2rem; border-bottom: 1px solid var(--border-color); padding-bottom: 1rem;">
-            <h3 id="formTitle">Measurements</h3>
+            <h3 id="formTitle">
+                {% if reuse_measurement %}
+                Reuse Measurement
+                {% else %}
+                Measurements
+                {% endif %}
+            </h3>
+            {% if not reuse_measurement %}
             <button class="btn btn-sm btn-outline" onclick="goToStep(1)">Change Category</button>
+            {% endif %}
         </div>
 
         <form method="POST" id="measurementForm" onsubmit="prepareSubmission(event)">
-            <input type="hidden" name="category_id" id="input_category_id">
-            <input type="hidden" name="measurements_json" id="input_measurements_json">
+            <input type="hidden" name="category_id" id="input_category_id"
+                value="{{ reuse_measurement.category_id if reuse_measurement else '' }}">
+            <input type="hidden" name="measurements_json" id="input_measurements_json"
+                value='{{ reuse_measurement.measurements_json|tojson if reuse_measurement else "" }}'>
 
             <!-- Dynamic Fields Container -->
             <div id="dynamicFields" class="fields-grid"
-                style="display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem; margin-bottom: 2rem;">
+                style="display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem; margin-bottom: 2rem; {% if reuse_measurement %}display: none !important;{% endif %}">
                 <!-- Fields injected by JS -->
             </div>
 
+            <!-- Reuse Summary (Non-Editable) -->
+            {% if reuse_measurement %}
+            <div
+                style="background: var(--bg-color); padding: 1rem; border-radius: 8px; border: 1px solid var(--border-color); margin-bottom: 2rem;">
+                <h5 style="margin-bottom: 0.5rem; font-weight: 600;">Reusing Measurements: <span
+                        class="badge badge-primary">{{ reuse_measurement.category.name }}</span></h5>
+                <div style="display: flex; flex-wrap: wrap; gap: 0.5rem;">
+                    {% for k, v in reuse_measurement.measurements_json.items() %}
+                    <span class="badge badge-secondary"
+                        style="background: #e2e8f0; color: #334155; padding: 4px 8px; border-radius: 4px; font-size: 0.85rem;">
+                        {{ k }}: <strong>{{ v }}</strong>
+                    </span>
+                    {% endfor %}
+                </div>
+            </div>
+            {% endif %}
+
             <!-- Add Custom Field Button -->
-            <div style="margin-bottom: 2rem; text-align: right;">
+            <div style="margin-bottom: 2rem; text-align: right; {% if reuse_measurement %}display: none;{% endif %}">
                 <button type="button" class="btn btn-sm btn-outline" onclick="addCustomField()"
                     style="border: 1px dotted var(--primary-color); color: var(--primary-color);">
                     <i class="fa-solid fa-plus"></i> Add Extra Field
@@ -380,7 +408,7 @@
                     setTimeout(() => { modal.classList.add('active'); }, 10);
 
                     // Set default dates
-                    const today = new Date().toISOString().split('T')[0]; 
+                    const today = new Date().toISOString().split('T')[0];
 
                     // Set Start Date to Today and Readonly
                     const startInput = document.getElementById('modal_start_date');

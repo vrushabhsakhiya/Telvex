@@ -18,8 +18,8 @@
         <!-- Categories (Dynamic) -->
         <div class="category-grid" style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 1rem;">
             {% for cat in categories %}
-            <button class="cat-btn"
-                onclick='selectCategory({{ cat.id }}, "{{ cat.name }}", {{ cat.fields_json|tojson }})'>
+            <button class="cat-btn" onclick="selectCategoryFromData(this)" data-id="{{ cat.id }}"
+                data-name="{{ cat.name }}" data-fields='{{ cat.fields_json|tojson }}'>
                 {{ cat.name }}
             </button>
             {% else %}
@@ -109,6 +109,13 @@
 </style>
 
 <script>
+    function selectCategoryFromData(btn) {
+        const id = btn.dataset.id;
+        const name = btn.dataset.name;
+        const fields = JSON.parse(btn.dataset.fields);
+        selectCategory(id, name, fields);
+    }
+
     function selectCategory(id, name, fields) {
         // Go to step 2
         document.getElementById('step1').style.display = 'none';
@@ -126,9 +133,9 @@
             const div = document.createElement('div');
             div.className = 'form-group';
             div.innerHTML = `
-                <label>${field}</label>
+                <label>${field} <span style="color:red">*</span></label>
                 <input type="number" step="any" class="form-control measurement-input" data-field="${field}" 
-                       oninput="this.value = this.value.replace(/[^0-9.]/g, '')" placeholder="0.00">
+                       oninput="this.value = this.value.replace(/[^0-9.]/g, '')" placeholder="0.00" required>
             `;
             container.appendChild(div);
         });
@@ -159,9 +166,9 @@
             const div = document.createElement('div');
             div.className = 'form-group';
             div.innerHTML = `
-                <label>${name} <i class="fa-solid fa-xmark" style="font-size: 0.8em; color: red; cursor: pointer;" onclick="this.parentElement.parentElement.remove()"></i></label>
+                <label>${name} <span style="color:red">*</span> <i class="fa-solid fa-xmark" style="font-size: 0.8em; color: red; cursor: pointer;" onclick="this.parentElement.parentElement.remove()"></i></label>
                 <input type="number" step="any" class="form-control measurement-input" data-field="${name}" 
-                       oninput="this.value = this.value.replace(/[^0-9.]/g, '')" placeholder="0.00">
+                       oninput="this.value = this.value.replace(/[^0-9.]/g, '')" placeholder="0.00" required>
             `;
             container.appendChild(div);
         }
@@ -169,6 +176,24 @@
 
     // Trigger Save & Order
     function saveAndOrder() {
+        // Validate all measurement inputs
+        const inputs = document.querySelectorAll('.measurement-input');
+        let isValid = true;
+
+        inputs.forEach(input => {
+            if (!input.value.trim()) {
+                input.style.borderColor = 'red';
+                isValid = false;
+            } else {
+                input.style.borderColor = ''; // Reset if valid
+            }
+        });
+
+        if (!isValid) {
+            alert('Please fill all compulsory measurement fields (marked with *).');
+            return;
+        }
+
         // Open Modal to get Order Details
         toggleOrderModal();
     }
@@ -295,6 +320,42 @@
             <input type="date" id="modal_delivery_date" class="form-control">
         </div>
 
+        <hr style="margin: 1.5rem 0; border: 0; border-top: 1px solid var(--border-color);">
+        <h4 style="margin-bottom: 1rem; font-weight: 600; color: var(--primary-color);">Payment Details</h4>
+
+        <div style="margin-bottom: 1rem;">
+            <label style="display: block; margin-bottom: 0.5rem; font-weight: 500;">Order Notes / Instructions</label>
+            <textarea id="modal_order_notes" class="form-control" rows="2"
+                placeholder="Specific splicing instructions, etc."></textarea>
+        </div>
+
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
+            <div style="margin-bottom: 1rem;">
+                <label style="display: block; margin-bottom: 0.5rem; font-weight: 500;">Total Amount (₹)</label>
+                <input type="number" id="modal_total_amt" class="form-control" placeholder="0.00" step="0.01">
+            </div>
+            <div style="margin-bottom: 1rem;">
+                <label style="display: block; margin-bottom: 0.5rem; font-weight: 500;">Advance Paid (₹)</label>
+                <input type="number" id="modal_advance" class="form-control" placeholder="0.00" step="0.01">
+            </div>
+        </div>
+
+        <div style="margin-bottom: 1rem;">
+            <label style="display: block; margin-bottom: 0.5rem; font-weight: 500;">Payment Mode</label>
+            <select id="modal_payment_mode" class="form-control">
+                <option value="Cash">Cash</option>
+                <option value="Online / UPI">Online / UPI</option>
+                <option value="Card">Card</option>
+                <option value="Bank Transfer">Bank Transfer</option>
+            </select>
+        </div>
+
+        <div style="margin-bottom: 1rem;">
+            <label style="display: block; margin-bottom: 0.5rem; font-weight: 500;">Bill Created By</label>
+            <input type="text" id="modal_created_by" class="form-control" value="{{ current_user.username|capitalize }}"
+                readonly style="background-color: #f9fafb; cursor: not-allowed;">
+        </div>
+
         <!-- ... -->
 
         <!-- ... -->
@@ -305,8 +366,12 @@
             Order Status: Processing (Auto)
         </div>
 
-        <!-- ... -->
-
+        <div style="margin-top: 2rem; border-top: 1px solid var(--border-color); padding-top: 1rem;">
+            <button onclick="submitOrder()" class="btn btn-primary"
+                style="width: 100%; justify-content: center; padding: 1rem; font-size: 1.1rem;">
+                Confirm & Create Order
+            </button>
+        </div>
         <script>
             function toggleOrderModal() {
                 const modal = document.getElementById('orderModal');
@@ -315,17 +380,15 @@
                     setTimeout(() => { modal.classList.add('active'); }, 10);
 
                     // Set default dates
-                    const today = new Date().toISOString().split('T')[0];
+                    const today = new Date().toISOString().split('T')[0]; 
 
                     // Set Start Date to Today and Readonly
                     const startInput = document.getElementById('modal_start_date');
-                    startInput.value = today;
-                    // startInput.readOnly = true; // Already set in HTML
+                    if (startInput) startInput.value = today;
 
                     // Set Delivery Date Min to Today
                     const deliveryInput = document.getElementById('modal_delivery_date');
-                    deliveryInput.min = today;
-                    // deliveryInput.value = today; // Optional: default to today?
+                    if (deliveryInput) deliveryInput.min = today;
 
                 } else {
                     modal.classList.remove('active');
@@ -335,7 +398,6 @@
         </script>
 
         <style>
-            /* Reuse Sidebar Styles (ensure these are present in base or page) */
             .sidebar-overlay {
                 display: none;
                 position: fixed;

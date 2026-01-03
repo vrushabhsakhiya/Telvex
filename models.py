@@ -121,3 +121,23 @@ class Reminder(db.Model):
 
     customer_rel = db.relationship('Customer', backref='reminders')
     order_rel = db.relationship('Order', backref='reminders')
+
+class History(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    action_type = db.Column(db.String(50), nullable=False) # Create, Edit, Delete
+    target_type = db.Column(db.String(50), nullable=False) # Order, Customer, Bill
+    target_id = db.Column(db.Integer, nullable=True)
+    details = db.Column(db.Text, nullable=True) # Description of change
+    timestamp = db.Column(db.DateTime, default=datetime.utcnow)
+
+    user = db.relationship('User', backref=db.backref('history', lazy=True))
+
+    @staticmethod
+    def log(user_id, action, target_type, target_id, details=None):
+        try:
+            log_entry = History(user_id=user_id, action_type=action, target_type=target_type, target_id=target_id, details=details)
+            db.session.add(log_entry)
+            # db.session.commit() # Relies on caller to commit
+        except Exception as e:
+            print(f"Logging failed: {e}")

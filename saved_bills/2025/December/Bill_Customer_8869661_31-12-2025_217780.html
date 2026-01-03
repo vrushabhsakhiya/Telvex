@@ -1,0 +1,311 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Invoice 217780</title>
+    <style>
+        @media print {
+            body {
+                -webkit-print-color-adjust: exact;
+                print-color-adjust: exact;
+            }
+
+            .no-print {
+                display: none;
+            }
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            margin: 0;
+            padding: 2rem;
+            color: #1f2937;
+            background: #f3f4f6;
+        }
+
+        .invoice-container {
+            max-width: 800px;
+            margin: 0 auto;
+            background: white;
+            padding: 3rem;
+            border-radius: 8px;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+        }
+
+        .header {
+            text-align: center;
+            border-bottom: 2px solid #e5e7eb;
+            padding-bottom: 2rem;
+            margin-bottom: 2rem;
+        }
+
+        .shop-name {
+            font-size: 2rem;
+            font-weight: 800;
+            color: #111827;
+            margin: 0;
+        }
+
+        .shop-meta {
+            color: #4b5563;
+            margin-top: 0.5rem;
+            line-height: 1.5;
+        }
+
+        .invoice-details {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 2rem;
+        }
+
+        .customer-info h4,
+        .invoice-meta h4 {
+            margin: 0 0 0.5rem 0;
+            color: #6b7280;
+            text-transform: uppercase;
+            font-size: 0.875rem;
+            letter-spacing: 0.05em;
+        }
+
+        .info-value {
+            font-weight: 600;
+            font-size: 1.125rem;
+        }
+
+        .bill-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 2rem;
+        }
+
+        .bill-table th {
+            text-align: left;
+            padding: 1rem;
+            background: #f9fafb;
+            border-bottom: 1px solid #e5e7eb;
+            font-weight: 600;
+            color: #374151;
+        }
+
+        .bill-table td {
+            padding: 1rem;
+            border-bottom: 1px solid #e5e7eb;
+        }
+
+        .totals {
+            margin-left: auto;
+            width: 300px;
+        }
+
+        .total-row {
+            display: flex;
+            justify-content: space-between;
+            padding: 0.5rem 0;
+            font-weight: 500;
+        }
+
+        .total-row.final {
+            border-top: 2px solid #111827;
+            margin-top: 0.5rem;
+            padding-top: 1rem;
+            font-size: 1.25rem;
+            font-weight: 800;
+        }
+
+        .footer {
+            margin-top: 3rem;
+            padding-top: 2rem;
+            border-top: 1px solid #e5e7eb;
+            font-size: 0.875rem;
+            color: #6b7280;
+        }
+
+        .terms {
+            white-space: pre-line;
+            /* Respect newlines in terms */
+        }
+    </style>
+</head>
+
+<body style="background: #e5e7eb; padding: 2rem 0;">
+
+    <!-- Control Toolbar (No Print) -->
+    
+
+    <!-- Invoice Paper -->
+    <div class="invoice-container" id="invoiceContent"
+        style="background: white; max-width: 210mm; margin: 0 auto; padding: 40px; box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1); min-height: 297mm; position: relative;">
+
+        <!-- Header Section -->
+        <div
+            style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 2rem; border-bottom: 2px solid #e5e7eb; padding-bottom: 2rem;">
+            <!-- Left: Logo & Shop Info -->
+            <div style="flex: 1; ">
+                
+                <img src="/static/uploads/generated-image_1.png" alt="Logo"
+                    style="height: 80px; max-width: 200px; object-fit: contain; margin-bottom: 1rem;">
+                <h1 style="font-size: 1.75rem; font-weight: 800; color: #111827; margin: 0; line-height: 1.2;">Fashion hub</h1>
+                
+
+                <div style="color: #4b5563; margin-top: 0.5rem; font-size: 0.95rem; line-height: 1.5;">
+                    SWaminarayan nagar, Simada gam ,Surat<br>
+                    <strong>Mobile:</strong> 7859840362<br>
+                    <strong>GSTIN:</strong> ABC123456B89
+                </div>
+            </div>
+
+            <!-- Right: Invoice Meta (Only to the right if logo exists, otherwise nice balanced layout below name?) 
+                 Actually, keeping invoice meta always top-right looks professional regardless of logo.
+                 But user asked 'if not logo show name in center'. Let's do a conditional layout. -->
+
+            
+            <div style="text-align: right; min-width: 200px;">
+                <h2 style="font-size: 2rem; color: #e5e7eb; margin: 0; font-weight: 900; letter-spacing: 0.1em;">INVOICE
+                </h2>
+                <div style="margin-top: 1rem;">
+                    <div
+                        style="color: #6b7280; font-size: 0.875rem; text-transform: uppercase; letter-spacing: 0.05em;">
+                        Invoice No</div>
+                    <div style="font-size: 1.25rem; font-weight: 700; color: #111827;">217780</div>
+                </div>
+                <div style="margin-top: 0.5rem;">
+                    <div
+                        style="color: #6b7280; font-size: 0.875rem; text-transform: uppercase; letter-spacing: 0.05em;">
+                        Date</div>
+                    <div style="font-size: 1.125rem; font-weight: 600; color: #374151;">31
+                        Dec, 2025</div>
+                </div>
+            </div>
+            
+        </div>
+
+        <!-- If No Logo, Render Invoice Meta Below Center Header -->
+        
+
+        <!-- Bill To -->
+        <div style="margin-bottom: 2rem;">
+            <div
+                style="color: #6b7280; font-size: 0.875rem; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 0.5rem;">
+                Bill To</div>
+            <div style="font-size: 1.25rem; font-weight: 700; color: #111827; margin-bottom: 0.25rem;">Customer 8869661</div>
+            <div style="color: #4b5563;">6015194120</div>
+            
+        </div>
+
+        <!-- Table -->
+        <table style="width: 100%; border-collapse: collapse; margin-bottom: 2rem;">
+            <thead>
+                <tr style="background: #111827; color: white;">
+                    <th style="padding: 1rem; text-align: left; font-weight: 600; border-radius: 6px 0 0 6px;">Item
+                        Description</th>
+                    <th style="padding: 1rem; text-align: center; font-weight: 600;">Qty</th>
+                    <th style="padding: 1rem; text-align: right; font-weight: 600; border-radius: 0 6px 6px 0;">Amount
+                    </th>
+                </tr>
+            </thead>
+            <tbody>
+                
+                
+                <tr style="border-bottom: 1px solid #e5e7eb;">
+                    <td style="padding: 1rem; color: #111827; font-weight: 500;">
+                        Shirt
+                        
+                    </td>
+                    <td style="padding: 1rem; text-align: center; color: #4b5563;">1</td>
+                    <td style="padding: 1rem; text-align: right; color: #111827; font-weight: 600;">₹18993.0</td>
+                </tr>
+                
+                
+            </tbody>
+        </table>
+
+        <!-- Footer Grid: Terms | Totals -->
+        <div style="display: flex; gap: 2rem; align-items: flex-start;">
+
+            <!-- Left: Terms & Payment Info -->
+            <div style="flex: 1;">
+                <h4 style="margin: 0 0 0.5rem 0; color: #111827; font-size: 0.9rem;">Terms & Conditions:</h4>
+                <div style="font-size: 0.8rem; color: #6b7280; white-space: pre-line; line-height: 1.4;">Subject to realization of payment.</div>
+
+                
+            </div>
+
+            <!-- Right: Totals -->
+            <div style="width: 300px;">
+                <div
+                    style="display: flex; justify-content: space-between; padding: 0.75rem 0; border-bottom: 1px solid #e5e7eb;">
+                    <span style="color: #4b5563;">Total Amount</span>
+                    <span style="font-weight: 600; color: #111827;">₹18993.0</span>
+                </div>
+                <div
+                    style="display: flex; justify-content: space-between; padding: 0.75rem 0; border-bottom: 1px solid #e5e7eb; color: #059669;">
+                    <span>Received</span>
+                    <span style="font-weight: 600;">₹9496.0</span>
+                </div>
+                <div
+                    style="display: flex; justify-content: space-between; padding: 1rem 0; font-size: 1.25rem; font-weight: 800; color: #dc2626;">
+                    <span>Balance Due</span>
+                    <span>₹9497.0</span>
+                </div>
+
+                <!-- Authorized Signatory Stamp Area (Footer Right) -->
+                <div style="margin-top: 3rem; text-align: center;">
+                    
+                    <!-- If user wanted logo in footer, we could put it here, but sticking to text signature for professional look -->
+                    
+                    <div
+                        style="font-family: 'Cursive', serif; font-size: 1.5rem; color: #111827; opacity: 0.8; margin-bottom: 0.5rem;">
+                        Fashion hub</div>
+                    <div style="border-top: 1px solid #111827; width: 80%; margin: 0 auto;"></div>
+                    <div
+                        style="font-size: 0.75rem; color: #6b7280; margin-top: 0.25rem; font-weight: 600; text-transform: uppercase;">
+                        Authorized Signatory</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Bottom: Thank You -->
+        <div
+            style="position: absolute; bottom: 40px; left: 40px; right: 40px; text-align: center; color: #9ca3af; font-size: 0.875rem;">
+            Thank you for choosing Fashion hub!
+        </div>
+
+    </div>
+
+    <!-- FontAwesome for Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
+    <script>
+        async function shareInvoice() {
+            try {
+                // Get HTML content
+                const content = document.documentElement.outerHTML;
+
+                // Create a File object
+                const blob = new Blob([content], { type: 'text/html' });
+                const file = new File([blob], "Bill_Customer_8869661.html", { type: 'text/html' });
+
+                // Check if sharing is supported
+                if (navigator.share && navigator.canShare && navigator.canShare({ files: [file] })) {
+                    await navigator.share({
+                        files: [file],
+                        title: 'Invoice for Customer 8869661',
+                        text: 'Here is your invoice from Fashion hub.',
+                    });
+                } else {
+                    // Fallback to WhatsApp Text if file sharing fails or not supported
+                    // Note: Cannot attach file via direct URL scheme 
+                    const text = `Hello Customer 8869661,%0A%0AHere is your bill details:%0AOrder ID: 217780%0ATotal: ₹18993.0%0ABalance: ₹9497.0%0A%0AFrom: Fashion hub`;
+                    window.open(`https://wa.me/6015194120?text=${text}`, '_blank');
+                }
+            } catch (error) {
+                console.log('Error sharing:', error);
+                alert('Sharing failed or cancelled.');
+            }
+        }
+    </script>
+</body>
+
+</html>

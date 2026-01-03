@@ -6,25 +6,25 @@
 <div class="stats-grid">
     <!-- Card 1: Total Customers -->
     <div class="card stat-card">
-        <h3>Total Customers</h3>
+        <h3>{{ t('total_customers') }}</h3>
         <div class="stat-value">{{ "{:,}".format(stats.total_customers) }}</div>
         <div class="stat-trend positive">
             <i class="fa-solid fa-users"></i> All Time
         </div>
     </div>
 
-    <!-- Card 2: Yearly Revenue -->
+    <!-- Card 2: All Time Revenue -->
     <div class="card stat-card">
-        <h3>Yearly Revenue</h3>
-        <div class="stat-value">₹{{ "{:,.0f}".format(stats.yearly_revenue) }}</div>
+        <h3>{{ t('all_time_revenue') }}</h3>
+        <div class="stat-value">₹{{ "{:,.0f}".format(stats.total_revenue) }}</div>
         <div class="stat-trend positive">
-            <i class="fa-solid fa-indian-rupee-sign"></i> This Year
+            <i class="fa-solid fa-indian-rupee-sign"></i> All Time
         </div>
     </div>
 
     <!-- Card 3: Pending Balance (Total) -->
     <div class="card stat-card">
-        <h3>Total Pending Balance</h3>
+        <h3>{{ t('pending_balance') }}</h3>
         <div class="stat-value">₹{{ "{:,.0f}".format(stats.pending_balance) }}</div>
         <div class="stat-trend warning">
             <i class="fa-solid fa-circle-exclamation"></i> Total Outstanding
@@ -74,7 +74,7 @@
     <!-- Card 4: Today's Delivery (New) -->
     <a href="{{ url_for('orders', delivery_date='today') }}" style="text-decoration: none; color: inherit;">
         <div class="card stat-card" style="cursor: pointer; transition: transform 0.2s;">
-            <h3>Today's Delivery</h3>
+            <h3>{{ t('due_today') }}</h3>
             <div class="stat-value">{{ stats.delivery_today }}</div>
             <div class="stat-trend warning">
                 <i class="fa-solid fa-truck-fast"></i> Due Today

@@ -1,0 +1,65 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="page-header"
+    style="margin-bottom: 2rem; display: flex; justify-content: space-between; align-items: center;">
+    <h2 style="font-size: 1.5rem; font-weight: 600;">Activity History</h2>
+    <span class="badge badge-primary">Admin Access Only</span>
+</div>
+
+<div class="card">
+    <div class="table-container">
+        <table>
+            <thead>
+                <tr>
+                    <th>Time</th>
+                    <th>User</th>
+                    <th>Action</th>
+                    <th>Target</th>
+                    <th>Details</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for log in logs %}
+                <tr>
+                    <td style="white-space: nowrap; color: var(--text-secondary);">
+                        {{ log.timestamp.strftime('%d-%b-%Y %H:%M') }}
+                    </td>
+                    <td>
+                        <div style="font-weight: 600;">{{ log.user.username|capitalize }}</div>
+                        <div style="font-size: 0.8rem; color: var(--text-secondary);">{{ log.user.role }}</div>
+                    </td>
+                    <td>
+                        {% if log.action_type == 'Create' %}
+                        <span class="badge badge-success"
+                            style="background: var(--success-bg); color: var(--success-color);">Create</span>
+                        {% elif log.action_type == 'Edit' %}
+                        <span class="badge badge-primary"
+                            style="background: #eff6ff; color: var(--primary-color);">Edit</span>
+                        {% elif log.action_type == 'Delete' %}
+                        <span class="badge badge-danger"
+                            style="background: #fef2f2; color: var(--danger-color);">Delete</span>
+                        {% else %}
+                        <span class="badge badge-secondary">{{ log.action_type }}</span>
+                        {% endif %}
+                    </td>
+                    <td>
+                        <span style="font-weight: 500;">{{ log.target_type }}</span>
+                        {% if log.target_id %}
+                        <span style="color: var(--text-secondary); font-size: 0.8rem;">{{ log.target_id }}</span>
+                        {% endif %}
+                    </td>
+                    <td style="max-width: 400px;">
+                        {{ log.details }}
+                    </td>
+                </tr>
+                {% else %}
+                <tr>
+                    <td colspan="5" style="text-align: center; padding: 2rem;">No history records found.</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}

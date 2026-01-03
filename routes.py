@@ -1,5 +1,5 @@
 from flask import render_template, request, redirect, url_for, flash, jsonify, make_response
-from models import db, Customer, Category, Measurement, Order, User, ShopProfile, mail
+from models import db, Customer, Category, Measurement, Order, User, ShopProfile, mail, History, Reminder
 from flask_login import login_user, logout_user, login_required, current_user
 from functools import wraps
 from werkzeug.utils import secure_filename
@@ -99,6 +99,28 @@ def register_routes(app):
         logout_user()
         flash('You have been logged out.', 'success')
         return redirect(url_for('login'))
+
+    @app.route('/history')
+    @login_required
+    def history():
+        if current_user.role != 'master':
+            flash('Access denied. Master only.', 'danger')
+            return redirect(url_for('dashboard'))
+        
+        # Auto-Cleanup: Delete logs older than 6 months (180 days)
+        try:
+            cutoff_date = datetime.utcnow() - timedelta(days=180)
+            deleted_count = History.query.filter(History.timestamp < cutoff_date).delete()
+            if deleted_count > 0:
+                db.session.commit()
+                # print(f"Cleaned up {deleted_count} old history records.")
+        except Exception as e:
+            print(f"History cleanup error: {e}")
+            db.session.rollback()
+
+        # Fetch all history, newest first
+        logs = History.query.order_by(History.timestamp.desc()).all()
+        return render_template('history.html', logs=logs)
 
     # --- Forgot Password Routes ---
     @app.route('/forgot-password', methods=['GET', 'POST'])
@@ -912,13 +934,17 @@ def register_routes(app):
                     
                     db.session.add(new_order)
                     db.session.commit()
-                    flash('Measurement and Order created successfully!', 'success')
+                    
+                    # Log History
+                    History.log(current_user.id, 'Create', 'Order', new_order.id, f"Created Order {new_order.id} for {customer.name} (Items: {item_name})")
+                    db.session.commit()
+
+                    flash('Measurement saved and Order created successfully!', 'success')
                     return redirect(url_for('orders'))
 
                 except Exception as e:
                     print(e)
                     db.session.rollback()
-                    flash('Error saving measurement', 'error')
             
             return redirect(url_for('customers'))
 
@@ -1128,7 +1154,10 @@ def register_routes(app):
                      order.payment_status = 'Pending'
             else:
                  order.payment_status = 'Pending'
-            
+    
+            # Log Update
+            History.log(current_user.id, 'Edit', 'Order', order.id, f"Updated Order #{order.id}: Status={status}, Paid={advance}/{total}")
+
             db.session.commit()
             flash('Order details updated successfully!', 'success')
         except Exception as e:
@@ -1143,53 +1172,58 @@ def register_routes(app):
     # For now, let's focus on Orders page using the NEW route.
 
 
-    @app.route('/delete/customer/<int:id>')
+    @app.route('/delete-customer/<int:id>', methods=['POST'])
     @login_required
     def delete_customer(id):
-        if not current_user.has_permission('delete_customer'):
-            flash('Permission denied: Delete Customer', 'error')
+        if not current_user.has_permission('delete_customer') and current_user.role != 'master':
+            flash('Permission denied from Route', 'error')
             return redirect(url_for('customers'))
             
+        customer = Customer.query.get_or_404(id)
         try:
-            cust = Customer.query.get_or_404(id)
+            cust_name = customer.name
+            cust_id = customer.id
             
-            # Manually delete related records to avoid FK constraint errors
-            # 1. Measurements
+            # Delete related records
             Measurement.query.filter_by(customer_id=id).delete()
-            # 2. Orders (and their reminders if any? Reminders linked to orders need care, but if we delete order, we might need to delete its reminders too)
-            # Actually, Reminders are linked to Customer AND Order.
-            # 3. Reminders
-            if 'Reminder' in globals():
-                 Reminder.query.filter_by(customer_id=id).delete()
-            
-            # Delete Orders (after reminders)
             Order.query.filter_by(customer_id=id).delete()
+            Reminder.query.filter_by(customer_id=id).delete()
             
-            # Finally delete customer
-            db.session.delete(cust)
+            db.session.delete(customer)
+            
+            # Log
+            History.log(current_user.id, 'Delete', 'Customer', cust_id, f"Deleted Customer: {cust_name}")
+            
             db.session.commit()
             flash('Customer deleted successfully.', 'success')
         except Exception as e:
             db.session.rollback()
             flash(f'Error deleting customer: {str(e)}', 'danger')
+            
         return redirect(url_for('customers'))
 
-    @app.route('/delete/order/<int:id>')
+    @app.route('/delete/order/<int:id>', methods=['POST'])
     @login_required
     def delete_order(id):
-        if not current_user.has_permission('delete_bill'):
-            flash('Permission denied: Delete Bill', 'error')
-            return redirect(url_for('orders'))
-            
+        order = Order.query.get_or_404(id)
         try:
-            order = Order.query.get_or_404(id)
+            oid = order.id
+            cust_name = order.customer.name
+            
             db.session.delete(order)
+            
+            # Log
+            History.log(current_user.id, 'Delete', 'Order', oid, f"Deleted Order #{oid} for {cust_name}")
+            
             db.session.commit()
             flash('Order deleted successfully.', 'success')
         except Exception as e:
             db.session.rollback()
             flash(f'Error deleting order: {str(e)}', 'danger')
+            
         return redirect(url_for('orders'))
+
+
 
     
     @app.route('/bills')

@@ -64,36 +64,40 @@
                 <a href="{{ url_for('dashboard') }}"
                     class="nav-item {% if active_page == 'dashboard' %}active{% endif %}">
                     <i class="fa-solid fa-house"></i>
-                    <span>Dashboard</span>
+                    <span>{{ t('dashboard') }}</span>
                 </a>
                 <a href="{{ url_for('customers') }}"
                     class="nav-item {% if active_page == 'customers' %}active{% endif %}">
                     <i class="fa-solid fa-users"></i>
-                    <span>Customers</span>
+                    <span>{{ t('customers') }}</span>
                 </a>
                 <a href="{{ url_for('orders') }}" class="nav-item {% if active_page == 'orders' %}active{% endif %}">
                     <i class="fa-solid fa-cart-shopping"></i>
-                    <span>Orders</span>
+                    <span>{{ t('orders') }}</span>
                 </a>
                 <a href="{{ url_for('bills') }}" class="nav-item {% if active_page == 'bills' %}active{% endif %}">
                     <i class="fa-solid fa-file-invoice-dollar"></i>
-                    <span>Bills</span>
+                    <span>{{ t('bills') }}</span>
                 </a>
                 <a href="{{ url_for('measurements') }}"
                     class="nav-item {% if active_page == 'measurements' %}active{% endif %}">
                     <i class="fa-solid fa-ruler"></i>
-                    <span>Measurements</span>
+                    <span>{{ t('measurements') }}</span>
                 </a>
                 <a href="{{ url_for('reminders') }}"
                     class="nav-item {% if active_page == 'reminders' %}active{% endif %}">
                     <i class="fa-regular fa-clock"></i>
-                    <span>Reminders</span>
+                    <span>{{ t('reminders') }}</span>
                 </a>
 
                 {% if current_user.role == 'master' %}
                 <a href="{{ url_for('users') }}" class="nav-item {% if active_page == 'users' %}active{% endif %}">
                     <i class="fa-solid fa-user-shield"></i>
-                    <span>Users</span>
+                    <span>{{ t('users') }}</span>
+                </a>
+                <a href="{{ url_for('history') }}" class="nav-item {% if active_page == 'history' %}active{% endif %}">
+                    <i class="fa-solid fa-clock-rotate-left"></i>
+                    <span>{{ t('history') }}</span>
                 </a>
                 {% endif %}
 
@@ -101,12 +105,12 @@
                 <a href="{{ url_for('custom_categories') }}"
                     class="nav-item {% if active_page == 'custom_categories' %}active{% endif %}">
                     <i class="fa-solid fa-layer-group"></i>
-                    <span>Custom Categories</span>
+                    <span>{{ t('settings') }} - CAT</span>
                 </a>
                 <a href="{{ url_for('settings') }}"
                     class="nav-item {% if active_page == 'settings' %}active{% endif %}">
                     <i class="fa-solid fa-gear"></i>
-                    <span>Settings</span>
+                    <span>{{ t('settings') }}</span>
                 </a>
                 {% endif %}
 
@@ -116,7 +120,7 @@
             <div style="padding: 0 1rem 1rem 1rem;">
                 <a href="{{ url_for('logout') }}" class="nav-item" style="color: #ef4444; justify-content: flex-start;">
                     <i class="fa-solid fa-right-from-bracket"></i>
-                    <span>Sign Out</span>
+                    <span>{{ t('sign_out') }}</span>
                 </a>
             </div>
 
@@ -166,9 +170,12 @@
 
                 <div class="header-actions">
                     <div class="lang-toggle">
-                        <span class="active">EN</span>
-                        <span>ગુજ</span>
-                        <span>हिं</span>
+                        <a href="?lang=en" style="text-decoration:none;"><span
+                                class="{% if current_lang == 'en' %}active{% endif %}">EN</span></a>
+                        <a href="?lang=gu" style="text-decoration:none;"><span
+                                class="{% if current_lang == 'gu' %}active{% endif %}">ગુજ</span></a>
+                        <a href="?lang=hi" style="text-decoration:none;"><span
+                                class="{% if current_lang == 'hi' %}active{% endif %}">हिं</span></a>
                     </div>
                     <button class="theme-toggle" id="themeToggle">
                         <i class="fa-regular fa-moon"></i>
@@ -216,31 +223,44 @@
             sidebar.classList.toggle('active');
         });
 
-        // Theme Toggle with Persistence
-        const themeToggle = document.getElementById('themeToggle');
-        const themeIcon = themeToggle.querySelector('i');
+        document.addEventListener('DOMContentLoaded', () => {
+            // Theme Toggle with Persistence
+            const themeToggle = document.getElementById('themeToggle');
+            if (themeToggle) {
+                const themeIcon = themeToggle.querySelector('i');
 
-        // 1. Check LocalStorage on Load (Handled in Head now for 'body', but we need to update icon)
-        const currentTheme = localStorage.getItem('theme');
-        if (currentTheme === 'dark') {
-            document.body.classList.add('dark-mode'); // Ensure class is present
-            themeIcon.classList.remove('fa-moon');
-            themeIcon.classList.add('fa-sun');
-        }
+                // 1. Check LocalStorage on Load
+                const currentTheme = localStorage.getItem('theme');
+                if (currentTheme === 'dark') {
+                    document.body.classList.add('dark-mode');
+                    if (themeIcon) {
+                        themeIcon.classList.remove('fa-moon');
+                        themeIcon.classList.add('fa-sun');
+                    }
+                }
 
-        // 2. Toggle & Save
-        themeToggle.addEventListener('click', () => {
-            document.body.classList.toggle('dark-mode');
+                // 2. Toggle & Save
+                themeToggle.addEventListener('click', () => {
+                    document.body.classList.toggle('dark-mode');
 
-            // UI Update
-            if (document.body.classList.contains('dark-mode')) {
-                themeIcon.classList.remove('fa-moon');
-                themeIcon.classList.add('fa-sun');
-                localStorage.setItem('theme', 'dark');
+                    // UI Update
+                    const isDark = document.body.classList.contains('dark-mode');
+                    if (isDark) {
+                        if (themeIcon) {
+                            themeIcon.classList.remove('fa-moon');
+                            themeIcon.classList.add('fa-sun');
+                        }
+                        localStorage.setItem('theme', 'dark');
+                    } else {
+                        if (themeIcon) {
+                            themeIcon.classList.remove('fa-sun');
+                            themeIcon.classList.add('fa-moon');
+                        }
+                        localStorage.setItem('theme', 'light');
+                    }
+                });
             } else {
-                themeIcon.classList.remove('fa-sun');
-                themeIcon.classList.add('fa-moon');
-                localStorage.setItem('theme', 'light');
+                console.error("Theme toggle button not found!");
             }
         });
         // Time-based Greeting
@@ -258,19 +278,33 @@
         }
         updateGreeting();
 
-        // Modal Toggle Function
-        function toggleModal(modalId) {
-            const modal = document.getElementById(modalId);
-            if (modal) {
-                modal.classList.toggle('active');
+        // Global Double-Submit Protection
+        document.addEventListener('submit', function (e) {
+            const form = e.target;
+            // distinct from ajax forms which might handle their own state
+            if (!form.classList.contains('no-disable')) {
+                const btn = form.querySelector('button[type="submit"]');
+                if (btn && !btn.disabled) {
+                    btn.disabled = true;
+                    // Optional: Backup original text and show spinner
+                    const originalText = btn.innerHTML;
+                    btn.setAttribute('data-original-text', originalText);
+                    btn.innerHTML = '<i class="fa-solid fa-circle-notch fa-spin"></i> Processing...';
+
+                    // Re-enable after 5 seconds timeout (safety net)
+                    setTimeout(() => {
+                        btn.disabled = false;
+                        btn.innerHTML = originalText;
+                    }, 5000);
+                }
             }
-        }
-    </script>
-    {% block scripts %}{% endblock %}
-    <!-- Shop Profile Modal -->
-    {% include 'shop_profile_modal.html' %}
-    <script src="{{ url_for('static', filename='js/script.js') }}"></script>
+        });
+
+        <!-- Shop Profile Modal -->
+        {% include 'shop_profile_modal.html' %}
+        <script src="{{ url_for('static', filename='js/script.js') }}"></script>
     <script src="{{ url_for('static', filename='js/ajax_nav.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/custom_scripts.js') }}"></script>
 </body>
 
 </html>

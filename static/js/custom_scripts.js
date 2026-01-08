@@ -13,6 +13,23 @@ function toggleModal(modalId) {
         // Sidebar Logic
         if (!modal.classList.contains('active')) {
             modal.style.display = 'flex';
+
+            // Check if opening Add Customer Modal - Reset it
+            if (modalId === 'addCustomerModal' && !window.isEditing) {
+                const form = modal.querySelector('form');
+                if (form) form.reset();
+                const idInput = document.getElementById('custIdInput');
+                if (idInput) idInput.value = '';
+                const title = document.getElementById('customerModalTitle');
+                if (title) title.innerText = 'Add New Customer';
+                const preview = document.getElementById('imagePreview');
+                if (preview) {
+                    preview.style.backgroundImage = 'none';
+                    preview.innerHTML = '<i class="fa-solid fa-camera" style="font-size: 1.5rem; color: var(--text-secondary);"></i>';
+                }
+            }
+            window.isEditing = false; // Reset flag
+
             // Small timeout to allow display:flex to apply before transition
             setTimeout(() => {
                 modal.classList.add('active');
@@ -45,12 +62,39 @@ function openProfile(id) {
     fetch('/api/customer/' + id)
         .then(response => response.json())
         .then(data => {
+            window.currentCustomerData = data;
             if (document.getElementById('profileName')) {
                 document.getElementById('profileName').innerText = data.name;
                 document.getElementById('profileMobile').innerText = data.mobile + " (" + data.gender + ")";
                 document.getElementById('profilePending').innerText = '₹' + data.total_pending;
                 document.getElementById('profileOrdersCount').innerText = data.orders_count;
                 document.getElementById('profileNewMeasBtn').href = "/customer/" + data.id + "/measurement";
+
+                // Profile Image
+                // Profile Image / Placeholder Logic
+                const imgEl = document.getElementById('profileImage');
+                const placeholderEl = document.getElementById('profilePlaceholder');
+                const genderIcon = document.getElementById('profileGenderIcon');
+
+                if (imgEl && placeholderEl) {
+                    if (data.photo) {
+                        imgEl.src = "/static/" + data.photo;
+                        imgEl.style.display = 'block';
+                        placeholderEl.style.display = 'none';
+                    } else {
+                        imgEl.style.display = 'none';
+                        placeholderEl.style.display = 'flex';
+
+                        // Set Gender Styles
+                        if (data.gender === 'female') {
+                            placeholderEl.style.background = '#EC4899'; // Pink
+                            if (genderIcon) genderIcon.className = 'fa-solid fa-person-dress';
+                        } else {
+                            placeholderEl.style.background = '#3B82F6'; // Blue
+                            if (genderIcon) genderIcon.className = 'fa-solid fa-person';
+                        }
+                    }
+                }
             }
 
             // Render Measurements
@@ -143,6 +187,10 @@ function openManageModal(id, status, total, advance, mode, start, delivery, crea
     // Dates & Creator (Hidden or Readonly now per user request, but keeping values populated)
     const startDateEl = document.getElementById('manage_start_date');
     if (startDateEl) startDateEl.value = start == 'None' ? '' : start;
+
+    // Set Creator
+    const creatorEl = document.getElementById('manage_created_by');
+    if (creatorEl) creatorEl.value = creator == 'None' ? '' : creator;
 
     document.getElementById('manage_delivery_date').value = delivery == 'None' ? '' : delivery;
 
@@ -273,4 +321,99 @@ function deleteMeasurement(measureId, customerId) {
             console.error(err);
             alert('An error occurred.');
         });
+}
+
+function editCurrentCustomer() {
+    const data = window.currentCustomerData;
+    if (!data) return;
+
+    window.isEditing = true; // Use flag to prevent reset in toggleModal
+
+    // Fill Form matches names in customers.html
+    // Inputs: name, mobile, city, area, notes, gender
+    const modal = document.getElementById('addCustomerModal');
+    const form = modal.querySelector('form');
+
+    if (form) {
+        const nameInput = form.querySelector('input[name="name"]');
+        if (nameInput) nameInput.value = data.name;
+
+        const mobileInput = form.querySelector('input[name="mobile"]');
+        if (mobileInput) mobileInput.value = data.mobile;
+
+        const cityInput = form.querySelector('input[name="city"]');
+        if (cityInput) cityInput.value = data.city || '';
+
+        const areaInput = form.querySelector('input[name="area"]');
+        if (areaInput) areaInput.value = data.area || '';
+
+        const notesInput = form.querySelector('textarea[name="notes"]');
+        if (notesInput) notesInput.value = data.notes || '';
+
+        const genderSelect = form.querySelector('select[name="gender"]');
+        if (genderSelect) genderSelect.value = data.gender ? data.gender.toLowerCase() : 'male';
+
+        document.getElementById('custIdInput').value = data.id;
+    }
+
+    const title = document.getElementById('customerModalTitle');
+    if (title) title.innerText = 'Edit Customer';
+
+    // Preview Image
+    const preview = document.getElementById('imagePreview');
+    if (preview) {
+        if (data.photo) {
+            preview.style.backgroundImage = 'url(/static/' + data.photo + ')';
+            preview.style.backgroundSize = 'cover';
+            preview.innerHTML = '';
+        } else {
+            preview.style.backgroundImage = 'none';
+            preview.innerHTML = '<i class="fa-solid fa-camera" style="font-size: 1.5rem; color: var(--text-secondary);"></i>';
+        }
+    }
+
+    toggleModal('profileSidebar'); // Close Profile
+    toggleModal('addCustomerModal'); // Open Edit
+}
+
+function deleteCurrentCustomer() {
+    const data = window.currentCustomerData;
+    if (!data) return;
+
+    if (!confirm('Are you sure you want to delete ' + data.name + '? This will delete their orders and cannot be undone.')) return;
+
+    const csrfToken = document.querySelector('input[name="csrf_token"]')?.value || document.querySelector('meta[name="csrf-token"]')?.content;
+
+    // Dynamic Form Submit to use existing Delete Route
+    const form = document.createElement('form');
+    form.method = 'POST';
+    form.action = '/delete/customer/' + data.id;
+
+    const input = document.createElement('input');
+    input.type = 'hidden';
+    input.name = 'csrf_token';
+    input.value = csrfToken;
+    form.appendChild(input);
+
+    document.body.appendChild(form);
+    form.submit();
+}
+
+
+function openManageOrder(btn) {
+    const d = btn.dataset;
+    // Map data attributes to arguments of openManageModal
+    // (id, status, total, advance, mode, start, delivery, creator, customerName, itemsText)
+    openManageModal(d.id, d.status, d.total, d.advance, d.mode, d.start, d.delivery, d.creator, d.customer, d.items);
+}
+
+function navigateToPage(input) {
+    const d = input.dataset;
+    let url = `${d.baseUrl}?page=${input.value}`;
+    if (d.month) url += `&month=${d.month}`;
+    if (d.year) url += `&year=${d.year}`;
+    if (d.q) url += `&q=${d.q}`;
+    if (d.status) url += `&status=${d.status}`;
+    if (d.deliveryDate) url += `&delivery_date=${d.deliveryDate}`; // dash-case to camelCase
+    window.location.href = url;
 }

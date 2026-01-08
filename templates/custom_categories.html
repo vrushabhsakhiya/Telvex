@@ -1,137 +1,151 @@
 {% extends 'base.html' %}
 
 {% block content %}
-<div style="max-width: 1200px; margin: 0 auto;">
+<div style="max-width: 1200px; margin: 0 auto; padding-bottom: 4rem;">
 
-    <!-- Page Header -->
-    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 2rem;">
-        <div>
-            <h2 style="font-size: 1.5rem; font-weight: 700; color: var(--text-primary);">{{ t('custom_categories') }}
-            </h2>
-            <p style="color: var(--text-secondary); font-size: 0.9rem;">{{ t('manage_categories_info') }}</p>
+    <!-- Premium Page Header -->
+    <div style="margin-bottom: 3rem; text-align: center; padding: 2rem 0; position: relative;">
+        <!-- Decorative Background Blur -->
+        <div
+            style="position: absolute; top: 0; left: 50%; transform: translateX(-50%); width: 60%; height: 100%; background: linear-gradient(90deg, #6366f1 0%, #a855f7 50%, #ec4899 100%); opacity: 0.15; filter: blur(60px); z-index: -1; border-radius: 50%;">
         </div>
+
+        <h2
+            style="font-size: 2.5rem; font-weight: 800; color: var(--text-primary); margin-bottom: 0.5rem; letter-spacing: -0.02em;">
+            {{ t('custom_categories') }}
+        </h2>
+        <p style="color: var(--text-secondary); font-size: 1.1rem; max-width: 600px; margin: 0 auto; line-height: 1.6;">
+            {{ t('manage_categories_info') }}
+        </p>
     </div>
 
-    <!-- Male Categories Section -->
-    <div style="margin-bottom: 2.5rem;">
-        <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 1.5rem;">
-            <div style="display: flex; align-items: center; gap: 0.75rem;">
-                <div
-                    style="width: 32px; height: 32px; background: #E0E7FF; color: #4338CA; border-radius: 50%; display: flex; align-items: center; justify-content: center;">
-                    <i class="fa-solid fa-person"></i>
-                </div>
-                <h3 style="font-size: 1.25rem; font-weight: 600; color: var(--text-primary);">{{ t('gents_wear') }}</h3>
-            </div>
-            <button class="btn" onclick="openAddCategoryModal('male')"
-                style="background: #4338CA; color: white; border: none; padding: 0.5rem 1rem; font-size: 0.9rem; border-radius: 0.5rem; display: flex; align-items: center; gap: 0.5rem; transition: opacity 0.2s;">
-                <i class="fa-solid fa-plus"></i> {{ t('add_category') }}
-            </button>
-        </div>
+    <!-- Main Grid Layout -->
+    <div class="categories-layout">
 
-        <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 1.5rem;">
-            {% for cat in male_categories %}
-            <div class="card" style="position: relative; transition: transform 0.2s, box-shadow 0.2s;">
-                <div style="margin-top: 0.5rem; margin-bottom: 1rem;">
+        <!-- SECTION: Gent's Wear -->
+        <div class="category-section">
+            <div class="section-header"
+                style="margin-bottom: 2rem; display: flex; align-items: center; justify-content: space-between;">
+                <div style="display: flex; align-items: center; gap: 1rem;">
                     <div
-                        style="width: 48px; height: 48px; background: #E0E7FF; border-radius: 12px; display: flex; align-items: center; justify-content: center; margin-bottom: 1rem; color: #4338CA; font-size: 1.25rem;">
-                        <i class="fa-solid fa-shirt"></i>
+                        style="width: 48px; height: 48px; background: linear-gradient(135deg, #e0e7ff 0%, #c7d2fe 100%); color: #4338CA; border-radius: 14px; display: flex; align-items: center; justify-content: center; box-shadow: 0 4px 6px -1px rgba(67, 56, 202, 0.1);">
+                        <i class="fa-solid fa-person" style="font-size: 1.5rem;"></i>
                     </div>
-                    <h3
-                        style="font-size: 1.1rem; font-weight: 600; margin-bottom: 0.25rem; color: var(--text-primary);">
-                        {{ cat.name }}</h3>
-                    <div style="font-size: 0.85rem; color: var(--text-secondary);">{{ cat.fields_json|length }}
-                        Measurements</div>
+                    <div>
+                        <h3 style="font-size: 1.5rem; font-weight: 700; color: var(--text-primary); margin: 0;">{{
+                            t('gents_wear') }}</h3>
+                        <span style="font-size: 0.9rem; color: var(--text-secondary);">Men's Collection</span>
+                    </div>
                 </div>
 
-                <div style="display: flex; flex-wrap: wrap; gap: 0.4rem; margin-bottom: 1.5rem;">
-                    {% for field in cat.fields_json[:5] %}
-                    <span
-                        style="font-size: 0.75rem; background: #F3F4F6; color: #4B5563; padding: 0.2rem 0.6rem; border-radius: 4px; border: 1px solid #E5E7EB;">
-                        {{ field }}
-                    </span>
-                    {% endfor %}
-                </div>
+                <button class="btn-premium btn-male" onclick="openAddCategoryModal('male')">
+                    <span class="icon-box"><i class="fa-solid fa-plus"></i></span>
+                    <span class="btn-text">{{ t('add_category') }}</span>
+                </button>
+            </div>
 
-                <div
-                    style="border-top: 1px solid var(--border-color); padding-top: 1rem; display: flex; justify-content: flex-end;">
-                    <a href="{{ url_for('delete_category', id=cat.id) }}" class="btn btn-sm"
-                        style="color: #EF4444; background: transparent; padding: 0.4rem 0.8rem;"
-                        onclick="return confirm('Delete {{ cat.name }}?')">
-                        <i class="fa-regular fa-trash-can"></i> Delete
-                    </a>
+            <div class="premium-grid">
+                {% for cat in male_categories %}
+                <div class="premium-card male-card">
+                    <div class="card-content">
+                        <div class="card-icon">
+                            <i class="fa-solid fa-shirt"></i>
+                        </div>
+                        <div class="card-info">
+                            <h4 class="card-title">{{ cat.name }}</h4>
+                            <span class="card-meta">{{ cat.fields_json|length }} Measurements</span>
+                        </div>
+                        <div class="card-actions">
+                            <a href="{{ url_for('delete_category', id=cat.id) }}" class="action-btn delete"
+                                onclick="return confirm('Delete {{ cat.name }}?')">
+                                <i class="fa-regular fa-trash-can"></i>
+                            </a>
+                        </div>
+                    </div>
+
+                    <div class="card-tags">
+                        {% for field in cat.fields_json[:4] %}
+                        <span class="tag">{{ field }}</span>
+                        {% endfor %}
+                        {% if cat.fields_json|length > 4 %}
+                        <span class="tag more">+{{ cat.fields_json|length - 4 }}</span>
+                        {% endif %}
+                    </div>
+                </div>
+                {% endfor %}
+
+                <!-- Add New Placeholder Card -->
+                <div class="add-card-placeholder male-placeholder" onclick="openAddCategoryModal('male')">
+                    <div class="placeholder-content">
+                        <i class="fa-solid fa-circle-plus"></i>
+                        <span>Add New</span>
+                    </div>
                 </div>
             </div>
-            {% else %}
-            <div
-                style="grid-column: 1/-1; padding: 2rem; border: 2px dashed #E0E7FF; background: #EEF2FF; border-radius: 0.5rem; text-align: center; color: #4338CA;">
-                <i class="fa-solid fa-circle-info"
-                    style="margin-bottom: 0.5rem; display: block; font-size: 1.5rem; opacity: 0.5;"></i>
-                {{ t('no_gents_items') }}
-            </div>
-            {% endfor %}
         </div>
-    </div>
 
-    <!-- Female Categories Section -->
-    <div>
-        <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 1.5rem;">
-            <div style="display: flex; align-items: center; gap: 0.75rem;">
-                <div
-                    style="width: 32px; height: 32px; background: #FCE7F3; color: #BE185D; border-radius: 50%; display: flex; align-items: center; justify-content: center;">
-                    <i class="fa-solid fa-person-dress"></i>
-                </div>
-                <h3 style="font-size: 1.25rem; font-weight: 600; color: var(--text-primary);">{{ t('ladies_wear') }}
-                </h3>
-            </div>
-            <button class="btn" onclick="openAddCategoryModal('female')"
-                style="background: #BE185D; color: white; border: none; padding: 0.5rem 1rem; font-size: 0.9rem; border-radius: 0.5rem; display: flex; align-items: center; gap: 0.5rem; transition: opacity 0.2s;">
-                <i class="fa-solid fa-plus"></i> {{ t('add_category') }}
-            </button>
-        </div>
-
-        <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 1.5rem;">
-            {% for cat in female_categories %}
-            <div class="card" style="position: relative; transition: transform 0.2s, box-shadow 0.2s;">
-                <div style="margin-top: 0.5rem; margin-bottom: 1rem;">
+        <!-- SECTION: Ladies' Wear -->
+        <div class="category-section">
+            <div class="section-header"
+                style="margin-bottom: 2rem; display: flex; align-items: center; justify-content: space-between;">
+                <div style="display: flex; align-items: center; gap: 1rem;">
                     <div
-                        style="width: 48px; height: 48px; background: #FCE7F3; border-radius: 12px; display: flex; align-items: center; justify-content: center; margin-bottom: 1rem; color: #BE185D; font-size: 1.25rem;">
-                        <i class="fa-solid fa-vest-patches"></i>
-                        <!-- Using similar icon, maybe vest/dress if available -->
+                        style="width: 48px; height: 48px; background: linear-gradient(135deg, #fce7f3 0%, #fbcfe8 100%); color: #be185d; border-radius: 14px; display: flex; align-items: center; justify-content: center; box-shadow: 0 4px 6px -1px rgba(190, 24, 93, 0.1);">
+                        <i class="fa-solid fa-person-dress" style="font-size: 1.5rem;"></i>
                     </div>
-                    <h3
-                        style="font-size: 1.1rem; font-weight: 600; margin-bottom: 0.25rem; color: var(--text-primary);">
-                        {{ cat.name }}</h3>
-                    <div style="font-size: 0.85rem; color: var(--text-secondary);">{{ cat.fields_json|length }}
-                        Measurements</div>
+                    <div>
+                        <h3 style="font-size: 1.5rem; font-weight: 700; color: var(--text-primary); margin: 0;">{{
+                            t('ladies_wear') }}</h3>
+                        <span style="font-size: 0.9rem; color: var(--text-secondary);">Women's Collection</span>
+                    </div>
                 </div>
 
-                <div style="display: flex; flex-wrap: wrap; gap: 0.4rem; margin-bottom: 1.5rem;">
-                    {% for field in cat.fields_json[:5] %}
-                    <span
-                        style="font-size: 0.75rem; background: #F3F4F6; color: #4B5563; padding: 0.2rem 0.6rem; border-radius: 4px; border: 1px solid #E5E7EB;">
-                        {{ field }}
-                    </span>
-                    {% endfor %}
-                </div>
+                <button class="btn-premium btn-female" onclick="openAddCategoryModal('female')">
+                    <span class="icon-box"><i class="fa-solid fa-plus"></i></span>
+                    <span class="btn-text">{{ t('add_category') }}</span>
+                </button>
+            </div>
 
-                <div
-                    style="border-top: 1px solid var(--border-color); padding-top: 1rem; display: flex; justify-content: flex-end;">
-                    <a href="{{ url_for('delete_category', id=cat.id) }}" class="btn btn-sm"
-                        style="color: #EF4444; background: transparent; padding: 0.4rem 0.8rem;"
-                        onclick="return confirm('Delete {{ cat.name }}?')">
-                        <i class="fa-regular fa-trash-can"></i> Delete
-                    </a>
+            <div class="premium-grid">
+                {% for cat in female_categories %}
+                <div class="premium-card female-card">
+                    <div class="card-content">
+                        <div class="card-icon">
+                            <i class="fa-solid fa-vest-patches"></i>
+                        </div>
+                        <div class="card-info">
+                            <h4 class="card-title">{{ cat.name }}</h4>
+                            <span class="card-meta">{{ cat.fields_json|length }} Measurements</span>
+                        </div>
+                        <div class="card-actions">
+                            <a href="{{ url_for('delete_category', id=cat.id) }}" class="action-btn delete"
+                                onclick="return confirm('Delete {{ cat.name }}?')">
+                                <i class="fa-regular fa-trash-can"></i>
+                            </a>
+                        </div>
+                    </div>
+
+                    <div class="card-tags">
+                        {% for field in cat.fields_json[:4] %}
+                        <span class="tag">{{ field }}</span>
+                        {% endfor %}
+                        {% if cat.fields_json|length > 4 %}
+                        <span class="tag more">+{{ cat.fields_json|length - 4 }}</span>
+                        {% endif %}
+                    </div>
+                </div>
+                {% endfor %}
+
+                <!-- Add New Placeholder Card -->
+                <div class="add-card-placeholder female-placeholder" onclick="openAddCategoryModal('female')">
+                    <div class="placeholder-content">
+                        <i class="fa-solid fa-circle-plus"></i>
+                        <span>Add New</span>
+                    </div>
                 </div>
             </div>
-            {% else %}
-            <div
-                style="grid-column: 1/-1; padding: 2rem; border: 2px dashed #FCE7F3; background: #FFF1F2; border-radius: 0.5rem; text-align: center; color: #BE185D;">
-                <i class="fa-solid fa-circle-info"
-                    style="margin-bottom: 0.5rem; display: block; font-size: 1.5rem; opacity: 0.5;"></i>
-                {{ t('no_ladies_items') }}
-            </div>
-            {% endfor %}
         </div>
+
     </div>
 </div>
 
@@ -140,7 +154,7 @@
     <div class="sidebar-panel" onclick="event.stopPropagation()">
         <!-- Header color will be set by JS -->
         <div id="modalHeader" class="modal-header"
-            style="padding-bottom: 1.5rem; border-bottom: 1px solid #E5E7EB; margin-bottom: 2rem; transition: background 0.3s; display: flex; justify-content: space-between; align-items: center;">
+            style="padding-bottom: 1.5rem; border-bottom: 1px solid var(--border-color); margin-bottom: 2rem; transition: background 0.3s; display: flex; justify-content: space-between; align-items: center;">
             <h3 id="modalTitle"
                 style="font-size: 1.5rem; font-weight: 600; color: var(--text-primary); display: flex; align-items: center; gap: 0.75rem;">
                 <!-- Icon will be injected -->
@@ -159,28 +173,28 @@
             </div>
 
             <div class="form-group" style="margin-bottom: 1.5rem;">
-                <label {{ t('category_name') }}</label>
-                    <div style="position: relative;">
-                        <i class="fa-solid fa-tag"
-                            style="position: absolute; left: 1rem; top: 50%; transform: translateY(-50%); color: #9CA3AF;"></i>
-                        <input type="text" name="name" placeholder="e.g. Waistcoat, Blazer" required autofocus
-                            style="width: 100%; padding: 0.75rem 0.75rem 0.75rem 2.5rem; border: 1px solid #D1D5DB; border-radius: 0.375rem; background: #FFFFFF; color: var(--text-primary); font-size: 1rem; transition: box-shadow 0.2s, border-color 0.2s;">
-                    </div>
-                    <small {{ t('category_help') }}</small>
+                <label>{{ t('category_name') }}</label>
+                <div style="position: relative;">
+                    <i class="fa-solid fa-tag"
+                        style="position: absolute; left: 1rem; top: 50%; transform: translateY(-50%); color: #9CA3AF;"></i>
+                    <input type="text" name="name" placeholder="{{ t('category_placeholder') }}" required autofocus
+                        style="width: 100%; padding: 0.75rem 0.75rem 0.75rem 2.5rem; border: 1px solid var(--border-color); border-radius: 0.375rem; background: var(--bg-color); color: var(--text-primary); font-size: 1rem; transition: box-shadow 0.2s, border-color 0.2s;">
+                </div>
+                <small>{{ t('category_help') }}</small>
             </div>
 
             <div class="form-group" style="margin-bottom: 2rem;">
                 <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem;">
-                    {{ t('measurement_fields') }}</label>
-                    <span {{ t('what_do_you_measure') }}</span>
+                    <label>{{ t('measurement_fields') }}</label>
+                    <span>{{ t('what_do_you_measure') }}</span>
                 </div>
 
                 <div class="field-builder"
-                    style="background: #F9FAFB; padding: 1.25rem; border-radius: 0.75rem; border: 1px dashed #D1D5DB;">
+                    style="background: var(--bg-color); padding: 1.25rem; border-radius: 0.75rem; border: 1px dashed var(--border-color);">
 
                     <div style="display: flex; gap: 0.5rem; margin-bottom: 1rem;">
-                        <input type="text" id="newFieldInput" placeholder="Part name (e.g. Length)"
-                            style="flex: 1; padding: 0.6rem 0.8rem; border: 1px solid #D1D5DB; border-radius: 0.375rem; font-size: 0.95rem; box-shadow: 0 1px 2px rgba(0,0,0,0.05);">
+                        <input type="text" id="newFieldInput" placeholder="{{ t('part_name_placeholder') }}"
+                            style="flex: 1; padding: 0.6rem 0.8rem; border: 1px solid var(--border-color); background: var(--card-bg); color: var(--text-primary); border-radius: 0.375rem; font-size: 0.95rem; box-shadow: 0 1px 2px rgba(0,0,0,0.05);">
                         <button type="button" id="btnAddField" onclick="addFieldTag()"
                             style="padding: 0 1.25rem; border-radius: 0.375rem; border: none; font-weight: 600; cursor: pointer; transition: all 0.2s; box-shadow: 0 1px 2px rgba(0,0,0,0.05);">
                             <i class="fa-solid fa-plus"></i> {{ t('add') }}
@@ -202,9 +216,9 @@
             </div>
 
             <div class="modal-footer"
-                style="padding-top: 1rem; border-top: 1px solid #E5E7EB; display: flex; justify-content: flex-end; gap: 1rem;">
+                style="padding-top: 1rem; border-top: 1px solid var(--border-color); display: flex; justify-content: flex-end; gap: 1rem;">
                 <button type="button" class="btn" onclick="closeAddCategoryModal()"
-                    style="border: 1px solid #D1D5DB; background: white; color: #374151; padding: 0.75rem 1.5rem; border-radius: 0.5rem; font-weight: 500; cursor: pointer; transition: background 0.1s;">
+                    style="border: 1px solid var(--border-color); background: var(--bg-color); color: var(--text-primary); padding: 0.75rem 1.5rem; border-radius: 0.5rem; font-weight: 500; cursor: pointer; transition: background 0.1s;">
                     {{ t('cancel') }}
                 </button>
                 <button type="submit" id="btnSaveCategory" class="btn"
@@ -217,7 +231,243 @@
 </div>
 
 <style>
-    /* Sidebar Overlay (Copied from Customers) */
+    /* PREMIUM GRID & CARDS */
+    .category-section {
+        position: relative;
+    }
+
+    .premium-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+        gap: 1.5rem;
+    }
+
+    /* Base Card Style */
+    .premium-card {
+        background: var(--card-bg);
+        border-radius: 20px;
+        padding: 1.5rem;
+        box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.05), 0 4px 6px -2px rgba(0, 0, 0, 0.02);
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        position: relative;
+        overflow: hidden;
+        display: flex;
+        flex-direction: column;
+        justify-content: space-between;
+    }
+
+    .premium-card:hover {
+        transform: translateY(-8px);
+        box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+    }
+
+    /* Male Theme */
+    .male-card:hover {
+        border-color: #818cf8;
+        /* Light Indigo */
+    }
+
+    .male-card .card-icon {
+        background: linear-gradient(135deg, #e0e7ff 0%, #c7d2fe 100%);
+        color: #4338CA;
+    }
+
+    /* Female Theme */
+    .female-card:hover {
+        border-color: #f472b6;
+        /* Light Pink */
+    }
+
+    .female-card .card-icon {
+        background: linear-gradient(135deg, #fce7f3 0%, #fbcfe8 100%);
+        color: #be185d;
+    }
+
+    /* Card Content Layout */
+    .card-content {
+        display: flex;
+        align-items: flex-start;
+        gap: 1rem;
+        margin-bottom: 1.5rem;
+    }
+
+    .card-icon {
+        width: 50px;
+        height: 50px;
+        border-radius: 12px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 1.5rem;
+        flex-shrink: 0;
+    }
+
+    .card-info {
+        flex-grow: 1;
+    }
+
+    .card-title {
+        font-size: 1.25rem;
+        font-weight: 700;
+        color: var(--text-primary);
+        margin: 0 0 0.25rem 0;
+    }
+
+    .card-meta {
+        font-size: 0.85rem;
+        color: var(--text-secondary);
+        font-weight: 500;
+    }
+
+    .card-actions {
+        opacity: 0;
+        transition: opacity 0.2s;
+    }
+
+    .premium-card:hover .card-actions {
+        opacity: 1;
+    }
+
+    .action-btn {
+        width: 32px;
+        height: 32px;
+        border-radius: 8px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        transition: background 0.2s;
+    }
+
+    .action-btn.delete {
+        color: #ef4444;
+    }
+
+    .action-btn.delete:hover {
+        background: #fee2e2;
+    }
+
+    /* Tags/Fields */
+    .card-tags {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.5rem;
+    }
+
+    .tag {
+        font-size: 0.75rem;
+        padding: 0.3rem 0.75rem;
+        border-radius: 20px;
+        font-weight: 500;
+        background: var(--bg-color);
+        border: 1px solid var(--border-color);
+        color: var(--text-secondary);
+    }
+
+    .tag.more {
+        background: transparent;
+        border: 1px dashed var(--border-color);
+    }
+
+    /* Add New Placeholder */
+    .add-card-placeholder {
+        border-radius: 20px;
+        border: 2px dashed var(--border-color);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        min-height: 180px;
+        cursor: pointer;
+        transition: all 0.2s;
+        background: rgba(255, 255, 255, 0.3);
+    }
+
+    .placeholder-content {
+        text-align: center;
+        color: var(--text-secondary);
+        opacity: 0.6;
+        transition: all 0.2s;
+    }
+
+    .placeholder-content i {
+        font-size: 2rem;
+        display: block;
+        margin-bottom: 0.5rem;
+    }
+
+    .add-card-placeholder:hover {
+        border-color: currentColor;
+        background: var(--card-bg);
+    }
+
+    .add-card-placeholder:hover .placeholder-content {
+        opacity: 1;
+        transform: scale(1.05);
+    }
+
+    .male-placeholder {
+        color: #4338CA;
+    }
+
+    .female-placeholder {
+        color: #be185d;
+    }
+
+    /* Premium Buttons */
+    .btn-premium {
+        border: none;
+        background: transparent;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        padding: 0.5rem;
+        border-radius: 12px;
+        transition: all 0.2s;
+    }
+
+    .btn-premium .icon-box {
+        width: 36px;
+        height: 36px;
+        border-radius: 10px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: white;
+    }
+
+    .btn-premium .btn-text {
+        font-weight: 600;
+        font-size: 0.95rem;
+    }
+
+    /* Male Btn */
+    .btn-male .icon-box {
+        background: #4338CA;
+    }
+
+    .btn-male .btn-text {
+        color: #4338CA;
+    }
+
+    .btn-male:hover {
+        background: #e0e7ff;
+    }
+
+    /* Female Btn */
+    .btn-female .icon-box {
+        background: #be185d;
+    }
+
+    .btn-female .btn-text {
+        color: #be185d;
+    }
+
+    .btn-female:hover {
+        background: #fce7f3;
+    }
+
+    /* SIDEBAR STYLES (Keep existing sidebar styles, just ensure compatibility) */
     .sidebar-overlay {
         display: none;
         position: fixed;
@@ -228,27 +478,54 @@
         background: rgba(0, 0, 0, 0.5);
         z-index: 1000;
         justify-content: flex-end;
-        /* Align to right */
     }
 
-    /* Sidebar Panel */
     .sidebar-panel {
         width: 100%;
         max-width: 500px;
-        /* Slightly wider for category builder */
         height: 100%;
-        background: white;
+        background: var(--card-bg);
         padding: 2rem;
         box-shadow: -4px 0 15px rgba(0, 0, 0, 0.1);
         transform: translateX(100%);
-        /* Start hidden off-screen */
         transition: transform 0.3s ease-out;
         overflow-y: auto;
     }
 
-    /* Active State for Panel */
     .sidebar-overlay.active .sidebar-panel {
         transform: translateX(0);
+    }
+
+    @media (max-width: 768px) {
+        .premium-grid {
+            grid-template-columns: 1fr;
+        }
+
+        /* Reduce gaps and padding on mobile */
+        .categories-layout {
+            gap: 2rem !important;
+        }
+
+        .category-section .section-header {
+            flex-direction: column;
+            align-items: flex-start;
+            gap: 1rem;
+        }
+
+        .category-section .section-header>div {
+            width: 100%;
+        }
+
+        .category-section .section-header button {
+            width: 100%;
+            justify-content: center;
+        }
+    }
+
+    .categories-layout {
+        display: grid;
+        grid-template-columns: 1fr;
+        gap: 4rem;
     }
 </style>
 
@@ -273,13 +550,8 @@
         const saveBtn = document.getElementById('btnSaveCategory');
         const addBtn = document.getElementById('btnAddField');
 
-        // Logic to show sidebar
-        if (!modal.classList.contains('active')) {
-            modal.style.display = 'flex';
-            setTimeout(() => {
-                modal.classList.add('active');
-            }, 10);
-        }
+        // Logic to show sidebar (Relies on style.css .active class for display:flex)
+        modal.classList.add('active');
 
         // Auto-set gender and Dynamic Theming
         if (gender === 'male') {
@@ -319,11 +591,7 @@
     function closeAddCategoryModal() {
         const modal = document.getElementById('addCategoryModal');
         if (!modal) return;
-
         modal.classList.remove('active');
-        setTimeout(() => {
-            modal.style.display = 'none';
-        }, 300);
     }
 
     function addFieldTag() {
@@ -389,4 +657,32 @@
         if (jsonInput) jsonInput.value = JSON.stringify(catFields);
     }
 </script>
+
+<style>
+    /* ... existing global styles ... */
+
+    /* Mobile Improvements for Categories */
+    @media (max-width: 768px) {
+        .section-header {
+            flex-direction: column;
+            align-items: stretch !important;
+            gap: 1rem;
+        }
+
+        .section-header>div {
+            /* The title container */
+            justify-content: flex-start;
+        }
+
+        .btn-premium {
+            width: 100%;
+            justify-content: center;
+        }
+
+        .premium-grid {
+            grid-template-columns: 1fr;
+            /* Force 1 column on specifically small screens if needed, otherwise auto-fill handles it */
+        }
+    }
+</style>
 {% endblock %}

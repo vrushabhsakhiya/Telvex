@@ -247,6 +247,46 @@
         .btn-close:hover {
             background: #FEE2E2;
         }
+
+        /* Mobile Improvements */
+        @media (max-width: 768px) {
+            body {
+                padding: 1rem;
+            }
+
+            .invoice-container {
+                padding: 1.5rem;
+                width: 100%;
+            }
+
+            .invoice-toolbar {
+                width: 90%;
+                flex-wrap: wrap;
+                justify-content: center;
+                top: 10px;
+            }
+
+            /* Header Stack */
+            div[style*="justify-content: space-between; align-items: flex-start; margin-bottom: 2rem"] {
+                flex-direction: column;
+                gap: 1.5rem;
+            }
+
+            div[style*="text-align: right; min-width: 200px"] {
+                text-align: left !important;
+                margin-top: 1rem;
+            }
+
+            /* Footer Stack */
+            div[style*="display: flex; gap: 2rem; align-items: flex-start"] {
+                flex-direction: column;
+            }
+
+            .totals {
+                width: 100%;
+                margin-left: 0;
+            }
+        }
     </style>
     <!-- html2pdf.js -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
@@ -257,14 +297,25 @@
     <!-- Control Toolbar (No Print) -->
     {% if not download_mode %}
     <div class="invoice-toolbar no-print">
+        <!-- Language Switcher -->
+        <div
+            style="display: flex; gap: 0.25rem; border-right: 1px solid #e5e7eb; padding-right: 0.75rem; margin-right: 0.5rem;">
+            <a href="?lang=en" class="toolbar-btn"
+                style="min-width: auto; padding: 0.5rem; {% if current_lang == 'en' %}background: #DBEAFE; color: #1D4ED8;{% endif %}">EN</a>
+            <a href="?lang=gu" class="toolbar-btn"
+                style="min-width: auto; padding: 0.5rem; {% if current_lang == 'gu' %}background: #DBEAFE; color: #1D4ED8;{% endif %}">GU</a>
+            <a href="?lang=hi" class="toolbar-btn"
+                style="min-width: auto; padding: 0.5rem; {% if current_lang == 'hi' %}background: #DBEAFE; color: #1D4ED8;{% endif %}">HI</a>
+        </div>
+
         <button onclick="window.print()" class="toolbar-btn btn-print">
-            <i class="fa-solid fa-print"></i> Print
+            <i class="fa-solid fa-print"></i> {{ t('print') if t('print') else 'Print' }}
         </button>
         {% if not is_public %}
         <!-- Auto-Save is enabled, manual button removed as per user request -->
         {% endif %}
         <button onclick="shareInvoice()" class="toolbar-btn btn-share">
-            <i class="fa-solid fa-share-nodes"></i> Share
+            <i class="fa-solid fa-share-nodes"></i> {{ t('share') if t('share') else 'Share' }}
         </button>
         <button onclick="shareWhatsApp()" class="toolbar-btn btn-whatsapp">
             <i class="fa-brands fa-whatsapp"></i> WhatsApp
@@ -306,18 +357,18 @@
             <!-- Right: Invoice Meta -->
             {% if shop.logo %}
             <div style="text-align: right; min-width: 200px;">
-                <h2 style="font-size: 2rem; color: #e5e7eb; margin: 0; font-weight: 900; letter-spacing: 0.1em;">INVOICE
-                </h2>
+                <h2 style="font-size: 2rem; color: #e5e7eb; margin: 0; font-weight: 900; letter-spacing: 0.1em;">{{
+                    t('invoice').upper() if t('invoice') else 'INVOICE' }}</h2>
                 <div style="margin-top: 1rem;">
                     <div
                         style="color: #6b7280; font-size: 0.875rem; text-transform: uppercase; letter-spacing: 0.05em;">
-                        Invoice No</div>
+                        {{ t('bill_id') if t('bill_id') else 'Invoice No' }}</div>
                     <div style="font-size: 1.25rem; font-weight: 700; color: #111827;">{{ '%04d' % order.id }}</div>
                 </div>
                 <div style="margin-top: 0.5rem;">
                     <div
                         style="color: #6b7280; font-size: 0.875rem; text-transform: uppercase; letter-spacing: 0.05em;">
-                        Date</div>
+                        {{ t('date') }}</div>
                     <div style="font-size: 1.125rem; font-weight: 600; color: #374151;">{{ order.created_at.strftime('%d
                         %b, %Y') }}</div>
                 </div>
@@ -331,12 +382,12 @@
             style="display: flex; justify-content: space-between; margin-bottom: 3rem; background: #f9fafb; padding: 1.5rem; border-radius: 8px;">
             <div>
                 <div style="color: #6b7280; font-size: 0.875rem; text-transform: uppercase; letter-spacing: 0.05em;">
-                    Invoice No</div>
+                    {{ t('bill_id') if t('bill_id') else 'Invoice No' }}</div>
                 <div style="font-size: 1.25rem; font-weight: 700; color: #111827;">{{ '%04d' % order.id }}</div>
             </div>
             <div style="text-align: right;">
                 <div style="color: #6b7280; font-size: 0.875rem; text-transform: uppercase; letter-spacing: 0.05em;">
-                    Date</div>
+                    {{ t('date') }}</div>
                 <div style="font-size: 1.25rem; font-weight: 700; color: #111827;">{{ order.created_at.strftime('%d %b,
                     %Y') }}</div>
             </div>
@@ -347,7 +398,7 @@
         <div style="margin-bottom: 2rem;">
             <div
                 style="color: #6b7280; font-size: 0.875rem; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 0.5rem;">
-                Bill To</div>
+                {{ t('customer') }}</div>
             <div style="font-size: 1.25rem; font-weight: 700; color: #111827; margin-bottom: 0.25rem;">{{
                 order.customer.name }}</div>
             <div style="color: #4b5563;">{{ order.customer.mobile }}</div>
@@ -355,50 +406,57 @@
         </div>
 
         <!-- Table -->
-        <table style="width: 100%; border-collapse: collapse; margin-bottom: 2rem;">
-            <thead>
-                <tr style="background: #111827; color: white;">
-                    <th style="padding: 1rem; text-align: left; font-weight: 600; border-radius: 6px 0 0 6px;">Item
-                        Description</th>
-                    <th style="padding: 1rem; text-align: center; font-weight: 600;">Qty</th>
-                    <th style="padding: 1rem; text-align: right; font-weight: 600; border-radius: 0 6px 6px 0;">Amount
-                    </th>
-                </tr>
-            </thead>
-            <tbody>
-                {% if order.items %}
-                {% for item in order.items %}
-                <tr style="border-bottom: 1px solid #e5e7eb;">
-                    <td style="padding: 1rem; color: #111827; font-weight: 500;">
-                        {{ item.name }}
-                        {% if order.work_status == 'Ready to Deliver' or order.work_status == 'Delivered' %}
-                        <div style="font-size: 0.75rem; color: #10b981; margin-top: 2px;">
-                            <i class="fa-solid fa-check-circle"></i> Item Ready
-                        </div>
-                        {% endif %}
-                    </td>
-                    <td style="padding: 1rem; text-align: center; color: #4b5563;">{{ item.qty or 1 }}</td>
-                    <td style="padding: 1rem; text-align: right; color: #111827; font-weight: 600;">₹{{ order.total_amt
-                        }}</td>
-                </tr>
-                {% endfor %}
-                {% else %}
-                <tr style="border-bottom: 1px solid #e5e7eb;">
-                    <td style="padding: 1rem; color: #111827; font-weight: 500;">Custom Tailoring</td>
-                    <td style="padding: 1rem; text-align: center; color: #4b5563;">1</td>
-                    <td style="padding: 1rem; text-align: right; color: #111827; font-weight: 600;">₹{{ order.total_amt
-                        }}</td>
-                </tr>
-                {% endif %}
-            </tbody>
-        </table>
+        <div style="overflow-x: auto; -webkit-overflow-scrolling: touch; width: 100%; margin-bottom: 2rem;">
+            <table style="width: 100%; border-collapse: collapse; min-width: 600px;">
+                <thead>
+                    <tr style="background: #111827; color: white;">
+                        <th style="padding: 1rem; text-align: left; font-weight: 600; border-radius: 6px 0 0 6px;">{{
+                            t('items') }}</th>
+                        <th style="padding: 1rem; text-align: center; font-weight: 600;">{{ t('qty') if t('qty') else
+                            'Qty' }}</th>
+                        <th style="padding: 1rem; text-align: right; font-weight: 600; border-radius: 0 6px 6px 0;">{{
+                            t('total_amount') }}
+                        </th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% if order.items %}
+                    {% for item in order.items %}
+                    <tr style="border-bottom: 1px solid #e5e7eb;">
+                        <td style="padding: 1rem; color: #111827; font-weight: 500;">
+                            {{ item.name }}
+                            {% if order.work_status == 'Ready to Deliver' or order.work_status == 'Delivered' %}
+                            <div style="font-size: 0.75rem; color: #10b981; margin-top: 2px;">
+                                <i class="fa-solid fa-check-circle"></i> {{ t('status_ready') }}
+                            </div>
+                            {% endif %}
+                        </td>
+                        <td style="padding: 1rem; text-align: center; color: #4b5563;">{{ item.qty or 1 }}</td>
+                        <td style="padding: 1rem; text-align: right; color: #111827; font-weight: 600;">₹{{
+                            order.total_amt
+                            }}</td>
+                    </tr>
+                    {% endfor %}
+                    {% else %}
+                    <tr style="border-bottom: 1px solid #e5e7eb;">
+                        <td style="padding: 1rem; color: #111827; font-weight: 500;">Custom Tailoring</td>
+                        <td style="padding: 1rem; text-align: center; color: #4b5563;">1</td>
+                        <td style="padding: 1rem; text-align: right; color: #111827; font-weight: 600;">₹{{
+                            order.total_amt
+                            }}</td>
+                    </tr>
+                    {% endif %}
+                </tbody>
+            </table>
+        </div>
 
         <!-- Footer Grid: Terms | Totals -->
-        <div style="display: flex; gap: 2rem; align-items: flex-start;">
+        <div style="display: flex; gap: 2rem; align-items: flex-start;" class="footer-stack">
 
             <!-- Left: Terms & Payment Info -->
             <div style="flex: 1;">
-                <h4 style="margin: 0 0 0.5rem 0; color: #111827; font-size: 0.9rem;">Terms & Conditions:</h4>
+                <h4 style="margin: 0 0 0.5rem 0; color: #111827; font-size: 0.9rem;">{{ t('bill_terms') if
+                    t('bill_terms') else 'Terms & Conditions' }}:</h4>
                 <div style="font-size: 0.8rem; color: #6b7280; white-space: pre-line; line-height: 1.4;">{{ shop.terms
                     or 'Subject to realization of payment.' }}</div>
 
@@ -414,20 +472,20 @@
             </div>
 
             <!-- Right: Totals -->
-            <div style="width: 300px;">
+            <div style="width: 300px;" class="totals">
                 <div
                     style="display: flex; justify-content: space-between; padding: 0.75rem 0; border-bottom: 1px solid #e5e7eb;">
-                    <span style="color: #4b5563;">Total Amount</span>
+                    <span style="color: #4b5563;">{{ t('total_amount') }}</span>
                     <span style="font-weight: 600; color: #111827;">₹{{ order.total_amt }}</span>
                 </div>
                 <div
                     style="display: flex; justify-content: space-between; padding: 0.75rem 0; border-bottom: 1px solid #e5e7eb; color: #059669;">
-                    <span>Received</span>
+                    <span>{{ t('paid_amount') }}</span>
                     <span style="font-weight: 600;">₹{{ order.advance }}</span>
                 </div>
                 <div class="{% if order.balance > 0 %}text-red{% else %}text-dark{% endif %}"
                     style="display: flex; justify-content: space-between; padding: 1rem 0; font-size: 1.25rem; font-weight: 800;">
-                    <span>Balance Due</span>
+                    <span>{{ t('balance_due') }}</span>
                     <span>₹{{ order.balance }}</span>
                 </div>
 
@@ -438,11 +496,11 @@
                     {% endif %}
                     <div
                         style="font-family: 'Cursive', serif; font-size: 1.5rem; color: #111827; opacity: 0.8; margin-bottom: 0.5rem;">
-                        {{ shop.shop_name }}</div>
+                        {{ order.bill_created_by or shop.shop_name }}</div>
                     <div style="border-top: 1px solid #111827; width: 80%; margin: 0 auto;"></div>
                     <div
                         style="font-size: 0.75rem; color: #6b7280; margin-top: 0.25rem; font-weight: 600; text-transform: uppercase;">
-                        Authorized Signatory</div>
+                        {{ t('authorized_signatory') if t('authorized_signatory') else 'Authorized Signatory' }}</div>
                 </div>
             </div>
         </div>

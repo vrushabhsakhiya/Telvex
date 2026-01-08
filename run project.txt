@@ -1,0 +1,26 @@
+Run Project Instructions
+========================
+
+Follow these steps to set up and run the project:
+
+1. Open a terminal (Powershell or Command Prompt) in the project directory:
+   e:\talvex
+
+2. Create a virtual environment (optional but recommended):
+   python -m venv .venv
+
+3. Activate the virtual environment:
+   .\.venv\Scripts\activate
+
+4. Install the required dependencies:
+   pip install -r requirements.txt
+
+5. Run the application:
+   python app.py
+
+6. Access the application in your web browser:
+   http://127.0.0.1:5000
+
+Note:
+- Ensure you have Python installed and added to your PATH.
+- If you encounter database errors, the app automatically creates tables on start.

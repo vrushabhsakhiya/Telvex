@@ -84,7 +84,7 @@
             <tbody>
                 {% for order in orders %}
                 <tr>
-                    <td>{{ order.id }}</td>
+                    <td>{{ (pagination.page - 1) * pagination.per_page + loop.index }}</td>
                     <td>
                         <div style="font-weight: 600;">{{ order.customer.name }}</div>
                         <div style="font-size: 0.85rem; color: var(--text-secondary);">{{ order.customer.mobile }}</div>
@@ -120,9 +120,15 @@
                     <td>₹{{ order.balance }}</td>
                     <td>
                         <div style="display: flex; gap: 0.5rem;">
-                            <button class="btn btn-sm btn-primary"
-                                onclick="openManageModal('{{ order.id }}', '{{ order.work_status }}', '{{ order.total_amt }}', '{{ order.advance }}', '{{ order.payment_mode }}', '{{ order.created_at.strftime('%Y-%m-%d') }}', '{{ order.delivery_date.strftime('%Y-%m-%d') if order.delivery_date else 'None' }}', 'System', '{{ order.customer.name|replace("'", "\\'") }}', '{% for i in order.items %}{{ i.qty }}x {{ i.name|replace("'", "\\'") }}{% if not loop.last %}, {% endif %}{% endfor %}')"
-                                title="Manage Order">
+                            <button class="btn btn-sm btn-primary" type="button" data-id="{{ order.id }}"
+                                data-status="{{ order.work_status }}" data-total="{{ order.total_amt }}"
+                                data-advance="{{ order.advance }}" data-mode="{{ order.payment_mode }}"
+                                data-start="{{ order.created_at.strftime('%Y-%m-%d') }}"
+                                data-delivery="{{ order.delivery_date.strftime('%Y-%m-%d') if order.delivery_date else 'None' }}"
+                                data-creator="{{ order.bill_created_by or 'System' }}"
+                                data-customer="{{ order.customer.name }}"
+                                data-items="{% for i in order.items %}{{ i.qty }}x {{ i.name }}{% if not loop.last %}, {% endif %}{% endfor %}"
+                                onclick="openManageOrder(this)" title="{{ t('manage_order') }}">
                                 <i class="fa-solid fa-pen-to-square"></i>
                             </button>
                             <form action="{{ url_for('delete_order', id=order.id) }}" method="POST"
@@ -156,7 +162,11 @@
                 <input type="number" min="1" max="{{ pagination.pages }}" value="{{ pagination.page }}"
                     class="form-input"
                     style="width: 70px; padding: 0.25rem 0.5rem; border: 1px solid var(--border-color); border-radius: 4px;"
-                    onchange="window.location.href='{{ url_for('orders') }}?page=' + this.value + '&q={{ request.args.get('q', '') }}&status={{ request.args.get('status', '') }}&delivery_date={{ request.args.get('delivery_date', '') }}&month={{ request.args.get('month', '') }}&year={{ request.args.get('year', '') }}'">
+                    data-base-url="{{ url_for('orders') }}" data-q="{{ request.args.get('q', '') }}"
+                    data-status="{{ request.args.get('status', '') }}"
+                    data-delivery-date="{{ request.args.get('delivery_date', '') }}"
+                    data-month="{{ request.args.get('month', '') }}" data-year="{{ request.args.get('year', '') }}"
+                    onchange="navigateToPage(this)">
             </div>
         </div>
 
@@ -193,7 +203,7 @@
     <div class="sidebar-panel" onclick="event.stopPropagation()">
         <div
             style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 2rem; border-bottom: 1px solid var(--border-color); padding-bottom: 1rem;">
-            <h3 style="font-size: 1.5rem; font-weight: 600;">Manage Order</h3>
+            <h3 style="font-size: 1.5rem; font-weight: 600;">{{ t('manage_order') }}</h3>
             <button onclick="toggleModal('manageModal')"
                 style="background: none; border: none; font-size: 1.5rem; cursor: pointer;">&times;</button>
         </div>
@@ -207,11 +217,13 @@
             <!-- Order Info (New) -->
             <div
                 style="background: var(--bg-color); padding: 1rem; border-radius: 6px; border: 1px solid var(--border-color); margin-bottom: 2rem;">
-                <div style="font-size: 0.9rem; color: var(--text-secondary); margin-bottom: 0.25rem;">Customer</div>
+                <div style="font-size: 0.9rem; color: var(--text-secondary); margin-bottom: 0.25rem;">{{ t('customer')
+                    }}</div>
                 <div style="font-weight: 600; font-size: 1.1rem; color: var(--primary-color); margin-bottom: 0.75rem;"
                     id="manage_info_customer">-</div>
 
-                <div style="font-size: 0.9rem; color: var(--text-secondary); margin-bottom: 0.25rem;">Items</div>
+                <div style="font-size: 0.9rem; color: var(--text-secondary); margin-bottom: 0.25rem;">{{ t('items') }}
+                </div>
                 <div style="font-weight: 500;" id="manage_info_items">-</div>
             </div>
 
@@ -219,21 +231,23 @@
             <div style="margin-bottom: 2rem;">
                 <h4
                     style="font-size: 1rem; font-weight: 600; margin-bottom: 1rem; color: var(--text-primary); border-bottom: 1px solid var(--border-color); padding-bottom: 0.5rem;">
-                    Delivery Status
+                    {{ t('delivery_status') }}
                 </h4>
 
                 <div style="display: grid; grid-template-columns: 1fr; gap: 1rem;">
                     <div>
-                        <label style="display: block; margin-bottom: 0.5rem; font-weight: 500;">Work Status</label>
+                        <label style="display: block; margin-bottom: 0.5rem; font-weight: 500;">{{ t('work_status')
+                            }}</label>
                         <select name="status" id="manage_status" class="form-input" required
                             style="width: 100%; padding: 0.75rem; border: 1px solid var(--border-color); border-radius: 0.375rem; background: var(--bg-color); color: var(--text-primary);">
-                            <option value="Processing">Processing</option>
-                            <option value="Ready">Ready to Deliver</option>
-                            <option value="Delivered">Delivered</option>
+                            <option value="Processing">{{ t('status_processing') }}</option>
+                            <option value="Ready">{{ t('status_ready') }}</option>
+                            <option value="Delivered">{{ t('status_delivered') }}</option>
                         </select>
                     </div>
                     <div>
-                        <label style="display: block; margin-bottom: 0.5rem; font-weight: 500;">Delivery Date</label>
+                        <label style="display: block; margin-bottom: 0.5rem; font-weight: 500;">{{ t('delivery_date')
+                            }}</label>
                         <input type="date" name="delivery_date" id="manage_delivery_date" class="form-input" required
                             style="width: 100%; padding: 0.75rem; border: 1px solid var(--border-color); border-radius: 0.375rem; background: var(--bg-color); color: var(--text-primary);">
                     </div>
@@ -244,13 +258,13 @@
             <div style="margin-bottom: 1rem;">
                 <h4
                     style="font-size: 1rem; font-weight: 600; margin-bottom: 1rem; color: var(--text-primary); border-bottom: 1px solid var(--border-color); padding-bottom: 0.5rem;">
-                    Payment Status
+                    {{ t('payment_status') }}
                 </h4>
 
                 <div style="margin-bottom: 1rem;">
                     <div
                         style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem;">
-                        <label style="font-weight: 500;">Total Bill Amount</label>
+                        <label style="font-weight: 500;">{{ t('total_bill') }}</label>
                     </div>
                     <div style="position: relative;">
                         <span
@@ -264,10 +278,10 @@
                 <div style="margin-bottom: 1rem;">
                     <div
                         style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem;">
-                        <label style="font-weight: 500;">Paid Amount</label>
+                        <label style="font-weight: 500;">{{ t('paid_amount') }}</label>
                         <button type="button" class="btn btn-sm btn-outline" onclick="addFullPayment()"
                             style="font-size: 0.8rem; padding: 2px 8px; border: 1px solid var(--success-color); color: var(--success-color);">
-                            <i class="fa-solid fa-check"></i> Mark Full Paid
+                            <i class="fa-solid fa-check"></i> {{ t('mark_full_paid') }}
                         </button>
                     </div>
                     <div style="position: relative;">
@@ -281,18 +295,19 @@
 
                 <div
                     style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem; background: #f9fafb; padding: 0.75rem; border-radius: 0.375rem;">
-                    <span style="color: var(--text-secondary);">Balance Due:</span>
+                    <span style="color: var(--text-secondary);">{{ t('balance_due') }}:</span>
                     <span id="calc_balance" style="font-weight: 700; font-size: 1.1rem;">₹0</span>
                 </div>
 
                 <div style="margin-bottom: 1rem;">
-                    <label style="display: block; margin-bottom: 0.5rem; font-weight: 500;">Payment Mode</label>
+                    <label style="display: block; margin-bottom: 0.5rem; font-weight: 500;">{{ t('payment_mode')
+                        }}</label>
                     <select name="payment_mode" id="manage_mode" class="form-input"
                         style="width: 100%; padding: 0.75rem; border: 1px solid var(--border-color); border-radius: 0.375rem; background: var(--bg-color); color: var(--text-primary);">
-                        <option value="Cash">Cash</option>
-                        <option value="Online / UPI">Online / UPI</option>
-                        <option value="Card">Card</option>
-                        <option value="Bank Transfer">Bank Transfer</option>
+                        <option value="Cash">{{ t('cash') }}</option>
+                        <option value="Online / UPI">{{ t('online_upi') }}</option>
+                        <option value="Card">{{ t('card') }}</option>
+                        <option value="Bank Transfer">{{ t('bank_transfer') }}</option>
                     </select>
                 </div>
             </div>
@@ -301,7 +316,7 @@
                 style="position: sticky; bottom: 0; background: var(--card-bg); padding-top: 1rem; border-top: 1px solid var(--border-color);">
                 <button type="submit" class="btn btn-primary"
                     style="width: 100%; justify-content: center; padding: 1rem; font-size: 1rem;">
-                    Update Order
+                    {{ t('update_order') }}
                 </button>
             </div>
         </form>
@@ -335,6 +350,118 @@
 
     .sidebar-overlay.active .sidebar-panel {
         transform: translateX(0);
+    }
+
+    /* Mobile Improvements */
+    @media (max-width: 768px) {
+        .page-header {
+            flex-direction: column;
+            align-items: flex-start !important;
+            /* Override inline style */
+            gap: 1rem;
+        }
+
+        /* Month Nav stack */
+        .month-nav {
+            width: 100%;
+            justify-content: space-between;
+        }
+
+        .filter-bar {
+            flex-direction: column;
+            align-items: stretch !important;
+        }
+
+        .filter-bar div[style*="min-width: 200px"] {
+            min-width: auto !important;
+            width: 100%;
+        }
+
+        /* Pagination */
+        div[style*="justify-content: space-between; align-items: center; padding-top: 1rem"] {
+            flex-direction: column;
+            gap: 1rem;
+            align-items: flex-start !important;
+        }
+
+        /* --- Mobile Table Card View --- */
+        table,
+        thead,
+        tbody,
+        th,
+        td,
+        tr {
+            display: block;
+        }
+
+        thead tr {
+            position: absolute;
+            top: -9999px;
+            left: -9999px;
+        }
+
+        tr {
+            border: 1px solid var(--border-color);
+            border-radius: 0.5rem;
+            margin-bottom: 1rem;
+            background: var(--card-bg);
+            padding: 1rem;
+            box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+        }
+
+        td {
+            border: none;
+            border-bottom: 1px solid #f3f4f6;
+            position: relative;
+            padding: 0.5rem 0;
+            padding-left: 0;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            text-align: left;
+        }
+
+        td:last-child {
+            border-bottom: none;
+            justify-content: flex-end;
+            /* Actions to right */
+            gap: 0.5rem;
+        }
+
+        /* Column Specifics */
+        td:nth-of-type(1) {
+            /* Order ID */
+            font-weight: bold;
+            color: var(--primary-color);
+            border-bottom: 1px solid #eee;
+        }
+
+        td:nth-of-type(1)::before {
+            content: "Order ID";
+            font-size: 0.8rem;
+            color: var(--text-secondary);
+            font-weight: normal;
+        }
+
+        td:nth-of-type(2) {
+            /* Customer */
+            display: block;
+            /* Allow name/mobile to stack naturally */
+        }
+
+        td:nth-of-type(6) {
+            /* Balance */
+            color: var(--text-primary);
+            font-weight: 600;
+        }
+
+        td:nth-of-type(6)::before {
+            content: "Balance";
+            font-size: 0.8rem;
+            color: var(--text-secondary);
+            margin-right: auto;
+            /* Push value to right */
+        }
     }
 </style>
 

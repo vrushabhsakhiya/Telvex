@@ -12,6 +12,12 @@
         rel="stylesheet">
     <!-- Icons -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
+    <!-- PWA Manifest & Meta -->
+    <link rel="manifest" href="{{ url_for('static', filename='manifest.json') }}">
+    <meta name="theme-color" content="#4338CA">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <!-- Custom CSS -->
     <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
     <!-- Chart.js -->
@@ -72,6 +78,9 @@
 
 <body>
     <div class="app-container">
+        <!-- Mobile Nav Overlay -->
+        <div class="nav-overlay" id="navOverlay"></div>
+
         <!-- Sidebar -->
         <aside class="sidebar">
             <div class="brand"
@@ -174,11 +183,12 @@
         <main class="main-content">
             <!-- Top Header -->
             <header class="top-header">
+                <!-- Left: Mobile Menu Toggle -->
                 <button class="mobile-menu-toggle" id="menuToggle">
                     <i class="fa-solid fa-bars"></i>
                 </button>
 
-                <!-- Left Side: Shop Brand (Logo + Name) -->
+                <!-- Brand -->
                 <div class="header-brand-icon" style="display: flex; align-items: center; gap: 0.75rem;">
                     {% if shop.logo %}
                     <img src="{{ url_for('static', filename=shop.logo) }}" alt="Shop Logo"
@@ -194,15 +204,8 @@
                     </span>
                 </div>
 
+                <!-- Right: Actions (Theme Toggle) -->
                 <div class="header-actions">
-                    <div class="lang-toggle">
-                        <a href="?lang=en" style="text-decoration:none;"><span
-                                class="{% if current_lang == 'en' %}active{% endif %}">EN</span></a>
-                        <a href="?lang=gu" style="text-decoration:none;"><span
-                                class="{% if current_lang == 'gu' %}active{% endif %}">ગુજ</span></a>
-                        <a href="?lang=hi" style="text-decoration:none;"><span
-                                class="{% if current_lang == 'hi' %}active{% endif %}">हिं</span></a>
-                    </div>
                     <button class="theme-toggle" id="themeToggle">
                         <i class="fa-regular fa-moon"></i>
                     </button>
@@ -242,9 +245,37 @@
         // Mobile Sidebar Toggle
         const menuToggle = document.getElementById('menuToggle');
         const sidebar = document.querySelector('.sidebar');
+        const navOverlay = document.getElementById('navOverlay');
 
-        menuToggle.addEventListener('click', () => {
+        function toggleSidebar() {
             sidebar.classList.toggle('active');
+            navOverlay.classList.toggle('active');
+        }
+
+        function closeSidebar() {
+            sidebar.classList.remove('active');
+            navOverlay.classList.remove('active');
+        }
+
+        if (menuToggle) {
+            menuToggle.addEventListener('click', (e) => {
+                e.stopPropagation(); // Prevent immediate closing if bubbling
+                toggleSidebar();
+            });
+        }
+
+        if (navOverlay) {
+            navOverlay.addEventListener('click', closeSidebar);
+        }
+
+        // Optional: Close sidebar on link click (for better mobile UX)
+        const navLinks = document.querySelectorAll('.nav-item');
+        navLinks.forEach(link => {
+            link.addEventListener('click', () => {
+                if (window.innerWidth <= 768) {
+                    closeSidebar();
+                }
+            });
         });
 
         document.addEventListener('DOMContentLoaded', () => {
@@ -303,6 +334,16 @@
         }
         updateGreeting();
 
+        // Auto-dismiss Flash Messages
+        setTimeout(() => {
+            const alerts = document.querySelectorAll('.flash-messages .alert');
+            alerts.forEach(alert => {
+                alert.style.transition = 'opacity 0.5s ease';
+                alert.style.opacity = '0';
+                setTimeout(() => alert.remove(), 500);
+            });
+        }, 2000); // 2 seconds delay
+
         // Global Double-Submit Protection
         document.addEventListener('submit', function (e) {
             const form = e.target;
@@ -331,6 +372,17 @@
     <script src="{{ url_for('static', filename='js/script.js') }}"></script>
     <script src="{{ url_for('static', filename='js/ajax_nav.js') }}"></script>
     <script src="{{ url_for('static', filename='js/custom_scripts.js') }}"></script>
+
+    <!-- Service Worker Registration -->
+    <script>
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register("{{ url_for('static', filename='sw.js') }}")
+                    .then(reg => console.log('Service Worker Registered'))
+                    .catch(err => console.log('Service Worker Error:', err));
+            });
+        }
+    </script>
 </body>
 
 </html>

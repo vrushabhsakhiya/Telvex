@@ -36,7 +36,7 @@ document.addEventListener('DOMContentLoaded', () => {
     // Smart Cache
     const pageCache = new Map();
 
-    function updateContent(doc) {
+    function updateContent(doc, url) {
         // Containers to update
         const selectors = [
             '.content-wrapper', // Main content area
@@ -76,13 +76,23 @@ document.addEventListener('DOMContentLoaded', () => {
         }
 
         // Re-execute standard scripts or update active states
-        updateActiveSidebarState();
+        updateActiveSidebarState(url);
 
         return updated;
     }
 
-    function updateActiveSidebarState() {
-        const path = window.location.pathname;
+    function updateActiveSidebarState(url) {
+        let path;
+        if (url) {
+            try {
+                // Handle both absolute and relative URLs
+                path = new URL(url, window.location.origin).pathname;
+            } catch (e) {
+                path = window.location.pathname;
+            }
+        } else {
+            path = window.location.pathname;
+        }
         const links = document.querySelectorAll('.sidebar-nav .nav-item');
         links.forEach(link => {
             const href = link.getAttribute('href');
@@ -99,7 +109,7 @@ document.addEventListener('DOMContentLoaded', () => {
         // 1. Check Cache (Instant Load)
         const cachedDoc = pageCache.get(url);
         if (cachedDoc) {
-            updateContent(cachedDoc);
+            updateContent(cachedDoc, url);
             if (pushState) window.history.pushState({}, '', url);
             // Don't return! Continue to background fetch (revalidate) to ensure data is fresh.
             // We skip 'showLoading()' to make it feel instant.
@@ -126,7 +136,7 @@ document.addEventListener('DOMContentLoaded', () => {
             pageCache.set(url, doc);
 
             // Update DOM (if new data differs)
-            updateContent(doc);
+            updateContent(doc, url);
 
             // Update URL if we haven't done it yet (uncached case)
             if (pushState && !cachedDoc) {

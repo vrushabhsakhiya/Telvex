@@ -1,8 +1,15 @@
 {% extends 'base.html' %}
 
 {% block content %}
+<style>
+    .urgent-card {
+        margin-bottom: 2rem;
+        border-left: 5px solid var(--danger-color);
+        margin-top: 2rem;
+    }
+</style>
 <!-- Upper Row: Yearly & Key Stats -->
-<h3 style="margin-bottom: 1rem; color: var(--text-primary);">{{ t('yearly_overview') }}</h3>
+<h3 style="margin-bottom: 1rem; color: var(--text-primary);">{{ t('Lifetime Overview') }}</h3>
 <div class="stats-grid">
     <!-- Card 1: Total Customers -->
     <div class="card stat-card">
@@ -85,7 +92,7 @@
 
 <!-- Urgent Reminders Widget (New) -->
 {% if urgent_reminders %}
-<div class="card" style="margin-bottom: 2rem; border-left: 5px solid var(--danger-color); margin-top: 2rem;">
+<div class="card urgent-card">
     <div class="card-header" style="padding-bottom: 0.5rem; justify-content: flex-start; gap: 0.5rem;">
         <i class="fa-solid fa-bell" style="color: var(--danger-color);"></i>
         <div class="card-title" style="color: var(--danger-color); font-size: 1rem;">{{ t('urgent_reminders') }} ({{
@@ -97,7 +104,7 @@
             style="display: flex; justify-content: space-between; align-items: center; padding: 0.75rem 0; border-bottom: 1px solid rgba(0,0,0,0.05);">
             <div style="display: flex; align-items: center; gap: 0.75rem;">
                 <div
-                    style="width: 32px; height: 32px; border-radius: 50%; background: #fff; border: 1px solid {{ rem.color }}; color: {{ rem.color }}; display: flex; align-items: center; justify-content: center; flex-shrink: 0;">
+                    style="--rem-color: {{ rem.color }}; width: 32px; height: 32px; border-radius: 50%; background: #fff; border: 1px solid var(--rem-color); color: var(--rem-color); display: flex; align-items: center; justify-content: center; flex-shrink: 0;">
                     <i class="fa-solid {{ rem.icon }}"></i>
                 </div>
                 <div>
@@ -117,8 +124,24 @@
 {% endif %}
 
 <!-- Middle Row: Lists -->
-<div class="grid-layout-middle"
-    style="display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem; margin-bottom: 2rem;">
+<style>
+    .grid-layout-middle {
+        display: grid;
+        gap: 1.5rem;
+        margin-bottom: 2rem;
+        /* Default: 1 Column (for Mobile) */
+        grid-template-columns: 1fr;
+    }
+
+    /* When screen is larger than 768px (Tablets/Laptops) */
+    @media (min-width: 768px) {
+        .grid-layout-middle {
+            /* Switch to 2 Columns */
+            grid-template-columns: 1fr 1fr;
+        }
+    }
+</style>
+<div class="grid-layout-middle">
     <!-- Upcoming Deliveries -->
     <div class="card">
         <div class="card-header">
@@ -210,8 +233,8 @@
                     </td>
                     <td>{{ order.created_at.strftime('%I:%M %p') }}</td>
                     <td>
-                        <button class="btn btn-sm btn-primary"
-                            onclick="window.location.href='{{ url_for('orders') }}';">{{ t('view') }}</button>
+                        <a href="{{ url_for('orders') }}" class="btn btn-sm btn-primary"
+                            style="text-decoration: none;">{{ t('view') }}</a>
                     </td>
                 </tr>
                 {% else %}
@@ -261,10 +284,14 @@
 </script>
 
 <style>
-    /* Responsive adjustment for middle grid */
-    @media (max-width: 1024px) {
-        .grid-layout-middle {
+    /* Responsive adjustment for dashboard grids */
+    @media (max-width: 768px) {
+
+        /* Stack everything on mobile */
+        .grid-layout-middle,
+        .stats-grid {
             grid-template-columns: 1fr !important;
+            gap: 1rem !important;
         }
     }
 </style>

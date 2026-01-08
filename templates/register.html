@@ -1,0 +1,42 @@
+{% extends "auth_base.html" %}
+
+{% block title %}Sign Up{% endblock %}
+
+{% block content %}
+<h2 style="font-size: 1.25rem; font-weight: 600; margin-bottom: 1.5rem; text-align: center;">Create your account</h2>
+
+<form action="{{ url_for('register') }}" method="POST">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+    <div class="form-group">
+        <label for="username" class="form-label">Shop / Owner Name</label>
+        <input type="text" id="username" name="username" class="form-input" placeholder="e.g. My Boutique" required>
+    </div>
+
+    <div class="form-group">
+        <label for="email" class="form-label">Email Address</label>
+        <input type="email" id="email" name="email" class="form-input" placeholder="You@example.com" required>
+    </div>
+
+    <div class="form-group">
+        <label for="password" class="form-label">Password</label>
+        <input type="password" id="password" name="password" class="form-input" placeholder="Min. 8 characters" required
+            minlength="8">
+        <p style="font-size: 0.75rem; color: #6B7280; margin-top: 0.25rem;">Must be at least 8 characters long.</p>
+    </div>
+
+    <div class="form-group">
+        <label for="confirm_password" class="form-label">Confirm Password</label>
+        <input type="password" id="confirm_password" name="confirm_password" class="form-input"
+            placeholder="Repeat Password" required minlength="8">
+    </div>
+
+    <button type="submit" class="btn btn-primary">
+        Create Account
+    </button>
+</form>
+
+<div class="auth-footer">
+    Already have an account? <a href="{{ url_for('login') }}">Sign in</a>
+</div>
+{% endblock %}

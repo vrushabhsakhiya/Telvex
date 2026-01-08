@@ -1,22 +1,43 @@
 from flask import Flask
 from config import Config
 from models import db
-from routes import register_routes
 from flask_wtf.csrf import CSRFProtect
 from flask_limiter import Limiter
 from flask_limiter.util import get_remote_address
 
 csrf = CSRFProtect()
+from flask_migrate import Migrate
+from flask_login import LoginManager
+from flask_talisman import Talisman
+from datetime import timedelta
+
+csrf = CSRFProtect()
 limiter = Limiter(key_func=get_remote_address)
+migrate = Migrate()
+login_manager = LoginManager()
+talisman = Talisman()
 
 def create_app():
     app = Flask(__name__)
     app.config.from_object(Config)
 
     # Initialize Plugins
+    # Initialize Plugins
     db.init_app(app)
     csrf.init_app(app)
     limiter.init_app(app)
+    migrate.init_app(app, db)
+    login_manager.init_app(app)
+    
+    # Talisman (HTTPS) - Disable in Debug/Local if needed, or configure content_security_policy
+    if not app.debug:
+        talisman.init_app(app, content_security_policy=None) # CSP can be strict, set None for now to avoid breaking scripts
+    
+    # Session Config
+    app.config['PERMANENT_SESSION_LIFETIME'] = timedelta(hours=9)
+    app.config['SECRET_KEY'] = 'your-secret-key-here-change-in-prod' # Ensure this is set
+
+    login_manager.login_view = 'login'
 
     # --- I18n / Translations ---
     translations = {
@@ -29,7 +50,7 @@ def create_app():
             'reminders': 'Reminders',
             'users': 'Users',
             'history': 'History',
-            'settings': 'Settings',
+            'settings': 'Control',
             'sign_out': 'Sign Out',
             'total_customers': 'Total Customers',
             'all_time_revenue': 'All Time Revenue',
@@ -163,7 +184,36 @@ def create_app():
             'data_type': 'Data Type',
             'download_data': 'Download Data',
             'reset_system_data': 'Reset System Data',
-            'reset_warning': 'WARNING: This will delete ALL Customers, Orders, and Measurements. This action cannot be undone. Are you sure?'
+            'reset_warning': 'WARNING: This will delete ALL Customers, Orders, and Measurements. This action cannot be undone. Are you sure?',
+            # Forms & Extra
+            'full_name': 'Full Name',
+            'name_placeholder': 'e.g. Rajesh Patel',
+            'mobile_number': 'Mobile Number',
+            'city': 'City',
+            'area': 'Area',
+            'note_reference': 'Note / Reference',
+            'save_customer': 'Save Customer',
+            'new_measurement': 'New Measurement',
+            'manage_order': 'Manage Order',
+            'delivery_status': 'Delivery Status',
+            'work_status': 'Work Status',
+            'paid_amount': 'Paid Amount',
+            'mark_full_paid': 'Mark Full Paid',
+            'balance_due': 'Balance Due',
+            'payment_mode': 'Payment Mode',
+            'update_order': 'Update Order',
+            'cash': 'Cash',
+            'card': 'Card',
+            'online_upi': 'Online / UPI',
+            'bank_transfer': 'Bank Transfer',
+            'status_pending': 'Pending',
+            'status_processing': 'Processing',
+            'status_ready': 'Ready to Deliver',
+            'status_delivered': 'Delivered',
+            'bill_created_by': 'Bill Created By',
+            'bill_created_by_names': 'Bill Creator Names (Staff)',
+            'bill_creators_placeholder': 'e.g. Rahul, Priya, System',
+            'bill_creators_help': 'Enter names separated by comma. These will appear in the Bill Created By dropdown.'
         },
         'hi': {
             'dashboard': 'डैशबोर्ड',
@@ -308,7 +358,36 @@ def create_app():
             'data_type': 'डेटा प्रकार',
             'download_data': 'डेटा डाउनलोड करें',
             'reset_system_data': 'सिस्टम डेटा रीसेट करें',
-            'reset_warning': 'चेतावनी: यह सभी ग्राहकों, ऑर्डर और माप को हटा देगा। यह क्रिया पूर्ववत नहीं की जा सकती। क्या आप सुनिश्चित हैं?'
+            'reset_warning': 'चेतावनी: यह सभी ग्राहकों, ऑर्डर और माप को हटा देगा। यह क्रिया पूर्ववत नहीं की जा सकती। क्या आप सुनिश्चित हैं?',
+            # Forms & Extra
+            'full_name': 'पूरा नाम',
+            'name_placeholder': 'जैसे: राजेश पटेल',
+            'mobile_number': 'मोबाइल नंबर',
+            'city': 'शहर',
+            'area': 'क्षेत्र / इलाका',
+            'note_reference': 'नोट / संदर्भ',
+            'save_customer': 'ग्राहक सहेजें',
+            'new_measurement': 'नया माप',
+            'manage_order': 'ऑर्डर प्रबंधित करें',
+            'delivery_status': 'डिलीवरी स्थिति',
+            'work_status': 'कार्य स्थिति',
+            'paid_amount': 'भुगतान की गई राशि',
+            'mark_full_paid': 'पूर्ण भुगतान चिह्नित करें',
+            'balance_due': 'बकाया राशि',
+            'payment_mode': 'भुगतान का प्रकार',
+            'update_order': 'ऑर्डर अपडेट करें',
+            'cash': 'नकद',
+            'card': 'कार्ड',
+            'online_upi': 'ऑनलाइन / यूपीआई',
+            'bank_transfer': 'बैंक ट्रांसफर',
+            'status_pending': 'लंबित',
+            'status_processing': 'प्रक्रिया में',
+            'status_ready': 'डिलीवरी के लिए तैयार',
+            'status_delivered': 'डिलीवर किया गया',
+            'bill_created_by': 'बिल किसके द्वारा बनाया गया',
+            'bill_created_by_names': 'बिल निर्माता के नाम (स्टाफ)',
+            'bill_creators_placeholder': 'जैसे: राहुल, प्रिया, सिस्टम',
+            'bill_creators_help': 'नाम अल्पविराम (comma) से अलग करके दर्ज करें।'
         },
         'gu': {
             'dashboard': 'ડેશબોર્ડ',
@@ -454,7 +533,36 @@ def create_app():
             'data_type': 'ડેટા પ્રકાર',
             'download_data': 'ડેટા ડાઉનલોડ કરો',
             'reset_system_data': 'સિસ્ટમ ડેટા રીસેટ કરો',
-            'reset_warning': 'ચેતવણી: આ તમામ ગ્રાહકો, ઓર્ડર અને માપને કાઢી નાખશે. આ ક્રિયા રદ કરી શકાતી નથી. શું તમને ખાતરી છે?'
+            'reset_warning': 'ચેતવણી: આ તમામ ગ્રાહકો, ઓર્ડર અને માપને કાઢી નાખશે. આ ક્રિયા રદ કરી શકાતી નથી. શું તમને ખાતરી છે?',
+            # Forms & Extra
+            'full_name': 'પૂરું નામ',
+            'name_placeholder': 'દા.ત. રાજેશ પટેલ',
+            'mobile_number': 'મોબાઇલ નંબર',
+            'city': 'શહેર',
+            'area': 'વિસ્તાર',
+            'note_reference': 'નોંધ / સંદર્ભ',
+            'save_customer': 'ગ્રાહક સાચવો',
+            'new_measurement': 'નવું માપ',
+            'manage_order': 'ઓર્ડર મેનેજ કરો',
+            'delivery_status': 'ડિલિવરી સ્થિતિ',
+            'work_status': 'કામની સ્થિતિ',
+            'paid_amount': 'ચૂકવેલ રકમ',
+            'mark_full_paid': 'સંપૂર્ણ ચૂકવેલ માર્ક કરો',
+            'balance_due': 'બાકી લેણાં',
+            'payment_mode': 'ચુકવણી પદ્ધતિ',
+            'update_order': 'ઓર્ડર અપડેટ કરો',
+            'cash': 'રોકડ',
+            'card': 'કાર્ડ',
+            'online_upi': 'ઓનલાઇન / યુપીઆઈ',
+            'bank_transfer': 'બેંક ટ્રાન્સફર',
+            'status_pending': 'બાકી',
+            'status_processing': 'પ્રક્રિયામાં',
+            'status_ready': 'ડિલિવરી માટે તૈયાર',
+            'status_delivered': 'ડિલિવર થયું',
+            'bill_created_by': 'બિલ કોણે બનાવ્યું',
+            'bill_created_by_names': 'બિલ બનાવનારના નામ (સ્ટાફ)',
+            'bill_creators_placeholder': 'દા.ત. રાહુલ, પ્રિયા, સિસ્ટમ',
+            'bill_creators_help': 'અલ્પવિરામ (comma) દ્વારા અલગ કરીને નામ દાખલ કરો.'
         }
     }
 
@@ -509,10 +617,12 @@ def create_app():
     
     # Register Routes
     with app.app_context():
+        from routes import register_routes
         register_routes(app)
         
         # Create DB Tables if they don't exist
         db.create_all()
+        
         
         # --- Seed Data ---
         from models import Category
@@ -529,6 +639,13 @@ def create_app():
             db.session.bulk_save_objects(categories)
             db.session.commit()
 
+
+
+
+    @login_manager.user_loader
+    def load_user(user_id):
+        from models import User
+        return User.query.get(int(user_id))
 
     return app
 

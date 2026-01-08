@@ -16,15 +16,22 @@
         <h3 style="margin-bottom: 1.5rem; text-align: center;">Select Category ({{ customer.gender|capitalize }})</h3>
 
         <!-- Categories (Dynamic) -->
-        <div class="category-grid" style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 1rem;">
+        <div class="category-grid">
             {% for cat in categories %}
             <button class="cat-btn" onclick="selectCategoryFromData(this)" data-id="{{ cat.id }}"
                 data-name="{{ cat.name }}" data-fields='{{ cat.fields_json|tojson }}'>
                 {{ cat.name }}
             </button>
             {% else %}
-            <p>No categories found for this gender. Please add them in settings.</p>
+            <!-- <p>No categories found for this gender. Please add them in control.</p> -->
+            <!-- We show "Other" even if empty -->
             {% endfor %}
+
+            <!-- Always Show "Create Category" Button -->
+            <button class="cat-btn" onclick="addQuickCategory()"
+                style="border-style: dashed; border-color: var(--primary-color); color: var(--primary-color);">
+                <i class="fa-solid fa-plus"></i> Create Category
+            </button>
         </div>
     </div>
 
@@ -66,7 +73,7 @@
                 <div style="display: flex; flex-wrap: wrap; gap: 0.5rem;">
                     {% for k, v in reuse_measurement.measurements_json.items() %}
                     <span class="badge badge-secondary"
-                        style="background: #e2e8f0; color: #334155; padding: 4px 8px; border-radius: 4px; font-size: 0.85rem;">
+                        style="background: var(--bg-color); color: var(--text-secondary); padding: 4px 8px; border-radius: 4px; font-size: 0.85rem; border: 1px solid var(--border-color);">
                         {{ k }}: <strong>{{ v }}</strong>
                     </span>
                     {% endfor %}
@@ -134,6 +141,31 @@
         color: var(--text-primary);
         font-size: 1rem;
     }
+
+    .form-control {
+        width: 100%;
+        padding: 0.75rem;
+        border: 1px solid var(--border-color);
+        border-radius: 0.375rem;
+        background: var(--bg-color);
+        color: var(--text-primary);
+        font-size: 1rem;
+    }
+
+    /* Mobile Improvements */
+    @media (max-width: 768px) {
+
+        /* Stack Dynamic Fields */
+        #dynamicFields {
+            grid-template-columns: 1fr !important;
+            gap: 1rem !important;
+        }
+
+        /* Stack Modal Payment Fields */
+        #orderModal div[style*="grid-template-columns: 1fr 1fr"] {
+            grid-template-columns: 1fr !important;
+        }
+    }
 </style>
 
 <script>
@@ -142,6 +174,48 @@
         const name = btn.dataset.name;
         const fields = JSON.parse(btn.dataset.fields);
         selectCategory(id, name, fields);
+    }
+
+    async function addQuickCategory() {
+        // Simple Prompt for Name
+        const name = prompt("Enter Category Name (e.g. 'Sherwani'):");
+        if (!name || !name.trim()) return;
+
+        // Call API
+        try {
+            const formData = new FormData();
+            // We need JSON payload
+            const payload = {
+                name: name.trim(),
+                gender: "{{ customer.gender }}" // Uses Jinja context
+            };
+
+            const res = await fetch('/api/category/add', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': "{{ csrf_token() }}" // Ensure CSRF if enabled or ignore if not
+                    // Assuming standard flask-wtf CSRF might be in headers or form
+                    // If csrf_token() renders, we should pass it. 
+                    // Usually Flask-WTF looks for X-CSRFToken header.
+                },
+                body: JSON.stringify(payload)
+            });
+
+            const data = await res.json();
+
+            if (data.success) {
+                // Determine fields (empty for new custom)
+                // Use the returned ID to select it.
+                selectCategory(data.category.id, data.category.name, data.category.fields);
+            } else {
+                alert('Error: ' + data.message);
+            }
+
+        } catch (e) {
+            console.error(e);
+            alert('Failed to add category. Please try again.');
+        }
     }
 
     function selectCategory(id, name, fields) {
@@ -237,7 +311,7 @@
         const form = document.getElementById('measurementForm');
 
         // Add hidden inputs for Order Details
-        const fields = ['start_date', 'delivery_date', 'order_status', 'order_notes', 'total_amt', 'advance', 'payment_mode'];
+        const fields = ['start_date', 'delivery_date', 'order_status', 'order_notes', 'total_amt', 'advance', 'payment_mode', 'created_by'];
         fields.forEach(f => {
             const val = document.getElementById('modal_' + f).value;
             const input = document.createElement('input');
@@ -355,7 +429,7 @@
         <div style="margin-bottom: 1rem;">
             <label style="display: block; margin-bottom: 0.5rem; font-weight: 500;">Start Date (Today)</label>
             <input type="date" id="modal_start_date" class="form-control" readonly
-                style="background-color: #f9fafb; cursor: not-allowed;">
+                style="background-color: var(--secondary-bg); cursor: not-allowed; opacity: 0.7;">
         </div>
 
         <div style="margin-bottom: 1rem;">
@@ -394,9 +468,16 @@
         </div>
 
         <div style="margin-bottom: 1rem;">
-            <label style="display: block; margin-bottom: 0.5rem; font-weight: 500;">Bill Created By</label>
-            <input type="text" id="modal_created_by" class="form-control" value="System" readonly
-                style="background-color: #f9fafb; cursor: not-allowed;">
+            <label style="display: block; margin-bottom: 0.5rem; font-weight: 500;">{{ t('bill_created_by') }}</label>
+            {% if shop.bill_creators %}
+            <select id="modal_created_by" class="form-control">
+                {% for name in shop.bill_creators %}
+                <option value="{{ name }}">{{ name }}</option>
+                {% endfor %}
+            </select>
+            {% else %}
+            <input type="text" id="modal_created_by" class="form-control" placeholder="System" value="System">
+            {% endif %}
         </div>
 
         <!-- ... -->

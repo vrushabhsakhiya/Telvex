@@ -8,6 +8,32 @@ from datetime import datetime, timedelta
 from flask_mail import Message
 import hmac
 import hashlib
+from flask_login import login_user, logout_user, login_required, current_user
+from models import User
+from app import limiter
+
+# OTP Helper
+def send_otp_email(user):
+    otp = ''.join(random.choices(string.digits, k=6))
+    user.otp_code = otp
+    # OTP Valid for 10 minutes
+    user.otp_expiry = datetime.utcnow() + timedelta(minutes=10)
+    db.session.commit()
+    
+    # FOR LOCAL TESTING: Print OTP to Console + Flash to Screen
+    print(f"\n{'='*20}\n OTP GENERATED: {otp} \n{'='*20}\n")
+    try:
+        from flask import current_app
+        if current_app.debug: # Only show in debug/local mode
+             flash(f'DEV MODE: Your OTP is {otp}', 'info')
+    except:
+        pass 
+    
+    try:
+        mail.send(msg)
+    except Exception as e:
+        print(f"Mail Error (OTP not sent via email): {e}")
+
 
 def register_routes(app):
     
@@ -15,9 +41,11 @@ def register_routes(app):
     @app.context_processor
     def inject_defaults():
         try:
-            from models import ShopProfile
-            shop = ShopProfile.query.first() or ShopProfile() # Fallback
-            return dict(active_page='', shop=shop)
+            if current_user.is_authenticated:
+                 # Access via relationship or query
+                 shop = ShopProfile.query.filter_by(user_id=current_user.id).first()
+                 return dict(active_page='', shop=shop)
+            return dict(active_page='', shop=None)
         except Exception as e:
             print(f"!!! ERROR IN INJECT_DEFAULTS: {e}")
             return dict(active_page='', shop=None)
@@ -26,9 +54,197 @@ def register_routes(app):
 
     @app.route('/')
     def index():
-        return redirect(url_for('dashboard'))
+        if current_user.is_authenticated:
+            return redirect(url_for('dashboard'))
+        return redirect(url_for('login'))
 
+    # --- Authentication Routes ---
 
+    @app.route('/register', methods=['GET', 'POST'])
+    def register():
+        if current_user.is_authenticated:
+            return redirect(url_for('dashboard'))
+            
+        if request.method == 'POST':
+            username = request.form.get('username')
+            email = request.form.get('email')
+            password = request.form.get('password')
+            confirm = request.form.get('confirm_password')
+            
+            if password != confirm:
+                flash('Passwords do not match.', 'error')
+                return redirect(url_for('register'))
+            
+            if User.query.filter_by(email=email).first():
+                flash('Email already registered.', 'error')
+                return redirect(url_for('register'))
+                
+            new_user = User(username=username, email=email)
+            new_user.set_password(password)
+            db.session.add(new_user)
+            db.session.commit()
+            
+            # Send OTP
+            send_otp_email(new_user)
+            
+            # Store ID in session temporarily for OTP verify
+            from flask import session
+            session['auth_user_id'] = new_user.id
+            
+            flash('Account created! Please verify your email.', 'success')
+            return redirect(url_for('verify_otp'))
+            
+        return render_template('register.html')
+
+    @app.route('/login', methods=['GET', 'POST'])
+    @limiter.limit("5 per minute") 
+    def login():
+        if current_user.is_authenticated:
+            return redirect(url_for('dashboard'))
+            
+        if request.method == 'POST':
+            email = request.form.get('email')
+            password = request.form.get('password')
+            
+            user = User.query.filter_by(email=email).first()
+            
+            # Check Lockout
+            if user and user.locked_until:
+                if user.locked_until > datetime.utcnow():
+                    # Still locked
+                    wait_seconds = (user.locked_until - datetime.utcnow()).seconds
+                    hours = wait_seconds // 3600
+                    mins = (wait_seconds % 3600) // 60
+                    flash(f'Account locked due to too many failed attempts. Try again in {hours}h {mins}m.', 'danger')
+                    return redirect(url_for('login'))
+                else:
+                    # Lock expired
+                    user.locked_until = None
+                    user.failed_attempts = 0
+                    db.session.commit()
+
+            if user and user.check_password(password):
+                # Success
+                user.failed_attempts = 0
+                db.session.commit()
+                
+                # Generate OTP for 2FA
+                send_otp_email(user)
+                
+                from flask import session
+                session['auth_user_id'] = user.id
+                session['remember_me'] = True # Assume true or add checkbox
+                
+                return redirect(url_for('verify_otp'))
+            else:
+                # Failure
+                if user:
+                    user.failed_attempts = (user.failed_attempts or 0) + 1
+                    if user.failed_attempts >= 5:
+                        user.locked_until = datetime.utcnow() + timedelta(hours=4)
+                        flash('Too many failed attempts. Account locked for 4 hours.', 'danger')
+                    else:
+                        flash('Invalid email or password.', 'error')
+                    db.session.commit()
+                else:
+                     flash('Invalid email or password.', 'error')
+                
+        return render_template('login.html')
+
+    @app.route('/verify-otp', methods=['GET', 'POST'])
+    def verify_otp():
+        from flask import session
+        user_id = session.get('auth_user_id')
+        if not user_id:
+            return redirect(url_for('login'))
+            
+        user = User.query.get(user_id)
+        if not user:
+            return redirect(url_for('login'))
+            
+        if request.method == 'POST':
+            otp = request.form.get('otp')
+            
+            if user.otp_code == otp and user.otp_expiry > datetime.utcnow():
+                # Success
+                user.otp_code = None
+                user.otp_expiry = None
+                user.is_verified = True
+                db.session.commit()
+                
+                # Login proper
+                login_user(user, remember=session.get('remember_me', False))
+                session.pop('auth_user_id', None)
+                session.pop('remember_me', None)
+                
+                flash(f'Welcome back, {user.username}!', 'success')
+                return redirect(url_for('dashboard'))
+            else:
+                flash('Invalid or expired OTP.', 'error')
+                
+        return render_template('otp_verify.html')
+
+    @app.route('/resend-otp')
+    def resend_otp():
+        from flask import session
+        user_id = session.get('auth_user_id')
+        if user_id:
+            user = User.query.get(user_id)
+            if user:
+                send_otp_email(user)
+                flash('New code sent.', 'info')
+                return redirect(url_for('verify_otp'))
+        return redirect(url_for('login'))
+
+    @app.route('/logout')
+    @login_required
+    def logout():
+        logout_user()
+        flash('You have been logged out.', 'info')
+        return redirect(url_for('login'))
+
+    @app.route('/forgot-password', methods=['GET', 'POST'])
+    def forgot_password():
+        if request.method == 'POST':
+            email = request.form.get('email')
+            user = User.query.filter_by(email=email).first()
+            if user:
+                send_otp_email(user)
+                from flask import session
+                session['reset_user_id'] = user.id
+                flash('Reset code sent to your email.', 'info')
+                return redirect(url_for('reset_password'))
+            else:
+                flash('Email not found.', 'error')
+        return render_template('forgot_password.html')
+
+    @app.route('/reset-password', methods=['GET', 'POST'])
+    def reset_password():
+        from flask import session
+        user_id = session.get('reset_user_id')
+        if not user_id:
+            return redirect(url_for('forgot_password'))
+            
+        if request.method == 'POST':
+            otp = request.form.get('otp')
+            password = request.form.get('password')
+            confirm = request.form.get('confirm_password')
+            
+            user = User.query.get(user_id)
+            if user and user.otp_code == otp and user.otp_expiry > datetime.utcnow():
+                if password == confirm:
+                    user.set_password(password)
+                    user.otp_code = None
+                    db.session.commit()
+                    session.pop('reset_user_id', None)
+                    flash('Password reset successfully. Please login.', 'success')
+                    return redirect(url_for('login'))
+                else:
+                    flash('Passwords do not match.', 'error')
+            else:
+                flash('Invalid or expired OTP.', 'error')
+                
+        return render_template('reset_password.html')
 
 
     # --- Protected Routes ---
@@ -36,12 +252,15 @@ def register_routes(app):
 
 
     @app.route('/settings', methods=['GET', 'POST'])
+    @login_required
     def settings():
         staff_members = []
-        shop = ShopProfile.query.first()
+        shop = ShopProfile.query.filter_by(user_id=current_user.id).first()
         if not shop:
-             shop = ShopProfile() # Temporary object for template if none exists
-             
+             shop = ShopProfile(user_id=current_user.id) # Create generic if missing
+             db.session.add(shop)
+             db.session.commit()
+              
         # Categories are now handled in custom_categories, but if needed here:
         # categories = Category.query.all() 
         
@@ -49,12 +268,11 @@ def register_routes(app):
 
 
     @app.route('/settings/update_profile', methods=['POST'])
+    @login_required
     def update_shop_profile():
-
-            
-        shop = ShopProfile.query.first()
+        shop = ShopProfile.query.filter_by(user_id=current_user.id).first()
         if not shop:
-            shop = ShopProfile()
+            shop = ShopProfile(user_id=current_user.id)
             db.session.add(shop)
             
         shop.shop_name = request.form.get('shop_name')
@@ -62,7 +280,13 @@ def register_routes(app):
         shop.mobile = request.form.get('mobile')
 
         shop.gst_no = request.form.get('gst_no')
+        shop.gst_no = request.form.get('gst_no')
         shop.terms = request.form.get('terms')
+        
+        # Handle Bill Creators (List)
+        creators_str = request.form.get('bill_creators', '')
+        # Split by comma, strip whitespace, remove empty
+        shop.bill_creators = [x.strip() for x in creators_str.split(',') if x.strip()]
         
         # Handle Logo Logic
         file = request.files.get('logo')
@@ -93,12 +317,24 @@ def register_routes(app):
 
 
     @app.route('/custom_categories')
+    @login_required
     def custom_categories():
-        male_categories = Category.query.filter_by(gender='male').all()
-        female_categories = Category.query.filter_by(gender='female').all()
-        return render_template('custom_categories.html', male_categories=male_categories, female_categories=female_categories, active_page='custom_categories')
+        # Fetch System defaults (user_id=None) OR My Custom (user_id=current_user.id)
+        # However, for simplicity, maybe we list them separately or merged?
+        # Let's filter strictly for what they can MANAGE (Custom ones)
+        # But for display in measurements, we need both.
+        # Here we only show list to MANAGE custom categories presumably.
+        
+        my_male = Category.query.filter_by(gender='male', user_id=current_user.id).all()
+        my_female = Category.query.filter_by(gender='female', user_id=current_user.id).all()
+        
+        # Optionally fetch system ones to show? prompt says "verify User A sees system categories".
+        # Assume system ones are not editable here.
+        
+        return render_template('custom_categories.html', male_categories=my_male, female_categories=my_female, active_page='custom_categories')
 
     @app.route('/settings/category/add', methods=['POST'])
+    @login_required
     def add_category():
         try:
             name = request.form.get('name', '').strip().title() # Force Title Case
@@ -108,7 +344,7 @@ def register_routes(app):
             import json
             fields_list = json.loads(fields_json_str) if fields_json_str else []
             
-            new_cat = Category(name=name, gender=gender, is_custom=True, fields_json=fields_list)
+            new_cat = Category(name=name, gender=gender, is_custom=True, fields_json=fields_list, user_id=current_user.id)
             db.session.add(new_cat)
             db.session.commit()
             flash(f'Category "{name}" added successfully.', 'success')
@@ -117,10 +353,13 @@ def register_routes(app):
             flash(f'Error adding category: {str(e)}', 'danger')
         return redirect(url_for('custom_categories'))
 
+
     @app.route('/settings/category/delete/<int:id>')
+    @login_required
     def delete_category(id):
         try:
-            cat = Category.query.get_or_404(id)
+            # Only allow deleting OWN categories
+            cat = Category.query.filter_by(id=id, user_id=current_user.id).first_or_404()
             # Check if used?? cascading?
             # For now simple delete.
             # Measurements using this category might break or just keep ID.
@@ -137,51 +376,105 @@ def register_routes(app):
             flash(f'Error deleting category: {str(e)}', 'danger')
         return redirect(url_for('custom_categories'))
 
+    @app.route('/api/category/add', methods=['POST'])
+    @login_required
+    def api_add_quick_category():
+        try:
+            data = request.get_json()
+            name = data.get('name', '').strip().title()
+            gender = data.get('gender', 'male') # Default male if missing
+            
+            if not name:
+                return jsonify({'success': False, 'message': 'Category name is required'}), 400
+                
+            # Check for duplicates (Case insensitive within user scope)
+            existing = Category.query.filter_by(user_id=current_user.id, gender=gender).filter(Category.name.ilike(name)).first()
+            if existing:
+                return jsonify({
+                    'success': True, 
+                    'message': 'Category exists', 
+                    'category': {
+                        'id': existing.id, 
+                        'name': existing.name, 
+                        'fields': existing.fields_json
+                    }
+                })
+                
+            # Create New
+            new_cat = Category(
+                name=name, 
+                gender=gender, 
+                is_custom=True, 
+                fields_json=[], # Empty by default for "Other"
+                user_id=current_user.id
+            )
+            db.session.add(new_cat)
+            db.session.commit()
+            
+            return jsonify({
+                'success': True, 
+                'message': 'Category created', 
+                'category': {
+                    'id': new_cat.id, 
+                    'name': new_cat.name, 
+                    'fields': new_cat.fields_json
+                }
+            })
+            
+        except Exception as e:
+            db.session.rollback()
+            return jsonify({'success': False, 'message': str(e)}), 500
+
 
 
     @app.route('/dashboard')
+    @login_required
     def dashboard():
         from datetime import date, timedelta
         from sqlalchemy import func
         from sqlalchemy.orm import joinedload
+        from sqlalchemy import text
         
         today = date.today()
         yesterday = today - timedelta(days=1)
         week_start = today - timedelta(days=7)
         
         # 1. Customer Stats
-        total_customers = Customer.query.count()
-        new_customers_week = Customer.query.filter(Customer.last_visit >= week_start).count()
-        customers_today = Customer.query.filter(func.date(Customer.last_visit) == today).count()
-        customers_yesterday = Customer.query.filter(func.date(Customer.last_visit) == yesterday).count()
+        total_customers = Customer.query.filter_by(user_id=current_user.id).count()
+        new_customers_week = Customer.query.filter(Customer.user_id==current_user.id, Customer.last_visit >= week_start).count()
+        customers_today = Customer.query.filter(Customer.user_id==current_user.id, func.date(Customer.last_visit) == today).count()
+        customers_yesterday = Customer.query.filter(Customer.user_id==current_user.id, func.date(Customer.last_visit) == yesterday).count()
         
         diff_today = customers_today - customers_yesterday
         
         # 2. Financials
-        # Total Pending Balance across ALL orders
-        total_pending = db.session.query(func.sum(Order.balance)).scalar() or 0
+        # Total Pending Balance
+        total_pending = db.session.query(func.sum(Order.balance)).filter(Order.user_id==current_user.id).scalar() or 0
         
-        # Balance added today (New orders today)
-        added_today = db.session.query(func.sum(Order.total_amt)).filter(func.date(Order.created_at) == today).scalar() or 0
+        # Balance added today
+        added_today = db.session.query(func.sum(Order.total_amt)).filter(Order.user_id==current_user.id, func.date(Order.created_at) == today).scalar() or 0
         
-        # Total Revenue (All time billing)
-        total_revenue = db.session.query(func.sum(Order.total_amt)).scalar() or 0
+        # Total Revenue
+        total_revenue = db.session.query(func.sum(Order.total_amt)).filter(Order.user_id==current_user.id).scalar() or 0
 
         # --- NEW: Monthly Metrics ---
         # Monthly Customers
         monthly_customers = Customer.query.filter(
+            Customer.user_id == current_user.id,
             func.extract('month', Customer.created_date) == today.month,
             func.extract('year', Customer.created_date) == today.year
         ).count()
 
-        # Monthly Pending Balance (Orders created this month)
+        # Monthly Pending Balance
         monthly_pending = db.session.query(func.sum(Order.balance)).filter(
+            Order.user_id == current_user.id,
             func.extract('month', Order.created_at) == today.month,
             func.extract('year', Order.created_at) == today.year
         ).scalar() or 0
 
-        # Monthly Revenue (Orders created this month)
+        # Monthly Revenue
         monthly_revenue = db.session.query(func.sum(Order.total_amt)).filter(
+            Order.user_id == current_user.id,
             func.extract('month', Order.created_at) == today.month,
             func.extract('year', Order.created_at) == today.year
         ).scalar() or 0
@@ -189,18 +482,20 @@ def register_routes(app):
         # --- NEW: Yearly Metrics ---
         # Yearly Customers
         yearly_customers = Customer.query.filter(
+            Customer.user_id == current_user.id,
             func.extract('year', Customer.created_date) == today.year
         ).count()
 
         # Yearly Revenue
         yearly_revenue = db.session.query(func.sum(Order.total_amt)).filter(
+            Order.user_id == current_user.id,
             func.extract('year', Order.created_at) == today.year
         ).scalar() or 0
         # -----------------------------
         
         # 3. Order Stats
-        pending_delivery = Order.query.filter(Order.work_status.in_(['Working', 'Ready to Deliver'])).count()
-        delivery_today = Order.query.filter(Order.delivery_date == today).filter(Order.work_status != 'Delivered').count()
+        pending_delivery = Order.query.filter_by(user_id=current_user.id).filter(Order.work_status.in_(['Working', 'Ready to Deliver'])).count()
+        delivery_today = Order.query.filter_by(user_id=current_user.id).filter(Order.delivery_date == today).filter(Order.work_status != 'Delivered').count()
         
         stats = {
             "total_customers": total_customers,
@@ -219,29 +514,23 @@ def register_routes(app):
             "yearly_revenue": yearly_revenue
         }
         
-        # Recent Activity (Last 5 Orders) - Optimized with JoinedLoad
-        recent_activity = Order.query.options(joinedload(Order.customer)).order_by(Order.created_at.desc()).limit(5).all()
+        # Recent Activity (Last 5 Orders)
+        recent_activity = Order.query.filter_by(user_id=current_user.id).options(joinedload(Order.customer)).order_by(Order.created_at.desc()).limit(5).all()
         
-        # Today's Orders (For detailed table) - Optimized
-        todays_orders_all = Order.query.options(joinedload(Order.customer)).filter(func.date(Order.created_at) == today).order_by(Order.created_at.desc()).all()
+        # Today's Orders
+        todays_orders_all = Order.query.filter_by(user_id=current_user.id).options(joinedload(Order.customer)).filter(func.date(Order.created_at) == today).order_by(Order.created_at.desc()).all()
         # Filter out opening balances
         todays_orders = [o for o in todays_orders_all if not (o.items and o.items[0].get('name') == "Previous Balance Due")]
         
-        # Urgent Reminders (Aggregation)
+        # Urgent Reminders
         urgent_reminders = []
-        
-        # 1. Deliveries Due Today/Overdue - OPTIMIZED: Limit 50, Eager Load
-        # We limit to 50 because displaying 1000 overdue items on dashboard is bad UX and performance kill.
-        due_orders = Order.query.options(joinedload(Order.customer)).filter(Order.delivery_date <= today, Order.work_status != 'Delivered').order_by(Order.delivery_date.asc()).limit(50).all()
+        due_orders = Order.query.filter_by(user_id=current_user.id).options(joinedload(Order.customer)).filter(Order.delivery_date <= today, Order.work_status != 'Delivered').order_by(Order.delivery_date.asc()).limit(50).all()
         
         for o in due_orders:
-            # Skip opening balance dummy orders
             if o.items and o.items[0].get('name') == "Previous Balance Due":
                 continue
-                
             days_diff = (o.delivery_date - today).days
             date_str = "Today" if days_diff == 0 else f"Overdue ({o.delivery_date.strftime('%d-%b')})"
-            
             urgent_reminders.append({
                 'title': o.customer.name, 
                 'desc': f"Delivery {date_str} - Order {o.id}",
@@ -251,16 +540,12 @@ def register_routes(app):
                 'color': 'var(--danger-color)'
             })
             
-        
         # Graph Data: Monthly Customers (Last 6 Months)
-        # SQLite-specific query for monthly grouping - keeping as is (efficient enough for 6 rows)
-        from sqlalchemy import text
         graph_data = db.session.query(
             func.strftime('%m-%Y', Customer.created_date).label('month'),
             func.count(Customer.id)
-        ).group_by('month').order_by(func.min(Customer.created_date)).limit(6).all()
+        ).filter(Customer.user_id == current_user.id).group_by('month').order_by(func.min(Customer.created_date)).limit(6).all()
         
-        # Format for Chart.js
         chart_labels = []
         chart_values = []
         for month_str, count in graph_data:
@@ -274,12 +559,10 @@ def register_routes(app):
         # Pie Chart Data: Order Status Distribution
         status_counts = db.session.query(
             Order.work_status, func.count(Order.id)
-        ).group_by(Order.work_status).all()
+        ).filter(Order.user_id == current_user.id).group_by(Order.work_status).all()
         
-        # Initialize with 0
         pie_data = {'Working': 0, 'Ready to Deliver': 0, 'Delivered': 0}
         for status, count in status_counts:
-            # Map old statuses if they exist
             if status in ['Pending', 'Processing']: key = 'Working'
             elif status == 'Ready': key = 'Ready to Deliver'
             else: key = status
@@ -293,9 +576,9 @@ def register_routes(app):
         pie_labels = list(pie_data.keys())
         pie_values = list(pie_data.values())
         
-        # Upcoming Deliveries (Next 7 Days) - for middle section - Optimized
+        # Upcoming Deliveries
         next_week = today + timedelta(days=7)
-        upcoming_deliveries_all = Order.query.options(joinedload(Order.customer)).filter(
+        upcoming_deliveries_all = Order.query.filter_by(user_id=current_user.id).options(joinedload(Order.customer)).filter(
             Order.delivery_date > today,
             Order.delivery_date <= next_week,
             Order.work_status != 'Delivered'
@@ -303,40 +586,106 @@ def register_routes(app):
         
         upcoming_deliveries = [o for o in upcoming_deliveries_all if not (o.items and o.items[0].get('name') == "Previous Balance Due")][:5]
 
-        # Top Customers (by Revenue) - Optimized Query
-        # Using db.session.query enables explicit join control
+        # Top Customers
         top_customers = db.session.query(
             Customer, func.sum(Order.total_amt).label('total_spend')
-        ).join(Order).group_by(Customer.id).order_by(text('total_spend DESC')).limit(5).all()
+        ).join(Order).filter(Customer.user_id == current_user.id).group_by(Customer.id).order_by(text('total_spend DESC')).limit(5).all()
         
-        return render_template('dashboard.html', stats=stats, todays_orders=todays_orders, urgent_reminders=urgent_reminders, upcoming_deliveries=upcoming_deliveries, top_customers=top_customers, active_page='dashboard')
+        return render_template('dashboard.html', stats=stats, todays_orders=todays_orders, urgent_reminders=urgent_reminders, upcoming_deliveries=upcoming_deliveries, top_customers=top_customers, active_page='dashboard', chart_labels=chart_labels, chart_values=chart_values, pie_labels=pie_labels, pie_values=pie_values)
 
     @app.route('/customers', methods=['GET', 'POST'])
+    @app.route('/customers', methods=['GET', 'POST'])
+    @login_required
     def customers():
         if request.method == 'POST':
-            # Quick Add Customer Logic
+            # Quick Add / Edit Customer Logic
+            cust_id = request.form.get('customer_id')
             name = request.form.get('name')
             mobile = request.form.get('mobile')
             gender = request.form.get('gender')
             
             if name and mobile:
-                new_cust = Customer(
-                    name=name, 
-                    mobile=mobile, 
-                    gender=gender, 
-                    city=request.form.get('city'),
-                    area=request.form.get('area'),
-                    notes=request.form.get('notes')
-                )
-                db.session.add(new_cust)
-                try:
-                    db.session.commit()
-                    # Removed auto-redirect to measurements
-                    flash('Customer added successfully!', 'success')
-                except Exception as e:
-                    print(e)
-                    db.session.rollback()
-                    flash(f'Error adding customer: {str(e)}', 'error')
+                if cust_id:
+                    # Edit Existing Customer
+                    cust = Customer.query.filter_by(id=cust_id, user_id=current_user.id).first()
+                    if cust:
+                        cust.name = name
+                        cust.mobile = mobile
+                        cust.gender = gender
+                        cust.city = request.form.get('city')
+                        cust.area = request.form.get('area')
+                        cust.notes = request.form.get('notes')
+                        
+                        # Handle Photo Upload (Update)
+                        if 'photo' in request.files:
+                            file = request.files['photo']
+                            if file and file.filename != '':
+                                from werkzeug.utils import secure_filename
+                                import os
+                                
+                                filename = secure_filename(file.filename)
+                                import uuid
+                                unique_filename = f"{uuid.uuid4().hex}_{filename}"
+                                
+                                upload_folder = os.path.join(app.root_path, 'static', 'uploads', 'customers')
+                                if not os.path.exists(upload_folder):
+                                    os.makedirs(upload_folder)
+                                    
+                                file.save(os.path.join(upload_folder, unique_filename))
+                                cust.photo = f"uploads/customers/{unique_filename}"
+                                
+                        try:
+                            db.session.commit()
+                            flash('Customer updated successfully!', 'success')
+                        except Exception as e:
+                            print(e)
+                            db.session.rollback()
+                            if 'UNIQUE constraint failed: customer.mobile' in str(e) or 'IntegrityError' in str(e):
+                                flash('Error: This mobile number is already registered.', 'error')
+                            else:
+                                flash(f'Error updating customer: {str(e)}', 'error')
+                else:
+                    # Create New Customer
+                    new_cust = Customer(
+                        name=name, 
+                        mobile=mobile, 
+                        gender=gender, 
+                        city=request.form.get('city'),
+                        area=request.form.get('area'),
+                        notes=request.form.get('notes'),
+                        user_id=current_user.id
+                    )
+
+                    # Handle Photo Upload
+                    if 'photo' in request.files:
+                        file = request.files['photo']
+                        if file and file.filename != '':
+                            from werkzeug.utils import secure_filename
+                            import os
+                            
+                            filename = secure_filename(file.filename)
+                            # Use a unique name to prevent collisions
+                            import uuid
+                            unique_filename = f"{uuid.uuid4().hex}_{filename}"
+                            
+                            upload_folder = os.path.join(app.root_path, 'static', 'uploads', 'customers')
+                            if not os.path.exists(upload_folder):
+                                os.makedirs(upload_folder)
+                                
+                            file.save(os.path.join(upload_folder, unique_filename))
+                            new_cust.photo = f"uploads/customers/{unique_filename}"
+
+                    db.session.add(new_cust)
+                    try:
+                        db.session.commit()
+                        # Removed auto-redirect to measurements
+                        flash('Customer added successfully!', 'success')
+                    except Exception as e:
+                        db.session.rollback()
+                        if 'UNIQUE constraint failed: customer.mobile' in str(e) or 'IntegrityError' in str(e):
+                             flash('Error: This mobile number is already registered.', 'error')
+                        else:
+                             flash(f'Error adding customer: {str(e)}', 'error')
             
             return redirect(url_for('customers'))
 
@@ -378,9 +727,8 @@ def register_routes(app):
                  cursor_visit = None
         
         # 3. Build Query (Select only necessary fields)
-        # We fetch full objects but SQLAlchemy will be optimized by loading only what we access if defer() is used, 
-        # OR we just select fields. For ease of use with template (rendering objects), we query Model but optimize relationships.
-        query = Customer.query.options(
+        # Filter by User FIRST
+        query = Customer.query.filter_by(user_id=current_user.id).options(
             db.load_only(Customer.id, Customer.name, Customer.mobile, Customer.gender, Customer.last_visit, Customer.photo)
         )
 
@@ -402,11 +750,11 @@ def register_routes(app):
         # Optimized Status Filter (EXISTS instead of list of IDs)
         if status_filter:
             if status_filter == 'pending':
-                query = query.filter(Customer.orders.any(Order.balance > 0)) # Subquery
+                # Filter customers who have orders with balance > 0 check order user_id too for safety
+                query = query.filter(Customer.orders.any((Order.balance > 0) & (Order.user_id == current_user.id))) 
             elif status_filter == 'paid':
-                # Customers with orders where sum(balance) <= 0 or no orders? 
-                # Simplification: Customers NOT having pending orders (approx)
-                query = query.filter(~Customer.orders.any(Order.balance > 0))
+                # Customers with no pending orders
+                query = query.filter(~Customer.orders.any((Order.balance > 0) & (Order.user_id == current_user.id)))
 
         # 4. Standard Pagination
         page = request.args.get('page', 1, type=int)
@@ -421,16 +769,16 @@ def register_routes(app):
         if customers_list:
             cust_ids = [c.id for c in customers_list]
             
-            # Count Orders
+            # Count Orders (filtered by user_id)
             from sqlalchemy import func
             order_counts = db.session.query(Order.customer_id, func.count(Order.id))\
-                .filter(Order.customer_id.in_(cust_ids))\
+                .filter(Order.customer_id.in_(cust_ids), Order.user_id==current_user.id)\
                 .group_by(Order.customer_id).all()
             count_map = {r[0]: r[1] for r in order_counts}
             
-            # Sum Balance
+            # Sum Balance (filtered by user_id)
             balance_sums = db.session.query(Order.customer_id, func.sum(Order.balance))\
-                .filter(Order.customer_id.in_(cust_ids))\
+                .filter(Order.customer_id.in_(cust_ids), Order.user_id==current_user.id)\
                 .group_by(Order.customer_id).all()
             balance_map = {r[0]: (r[1] or 0) for r in balance_sums}
             
@@ -462,8 +810,10 @@ def register_routes(app):
         return render_template('customers.html', customers=customers_list, pagination=pagination, month_nav=month_nav, active_page='customers')
 
     @app.route('/api/measurement/<int:id>')
+    @login_required
     def api_measurement_single(id):
-        meas = Measurement.query.get_or_404(id)
+        # Enforce User Ownership
+        meas = Measurement.query.filter_by(id=id, user_id=current_user.id).first_or_404()
         return jsonify({
             "id": meas.id,
             "category_id": meas.category_id,
@@ -472,8 +822,9 @@ def register_routes(app):
         })
 
     @app.route('/api/customer/<int:id>')
+    @login_required
     def api_customer_details(id):
-        customer = Customer.query.get_or_404(id)
+        customer = Customer.query.filter_by(id=id, user_id=current_user.id).first_or_404()
         
         # Serialize Measurements
         measurements_data = []
@@ -483,7 +834,7 @@ def register_routes(app):
                 "category": m.category.name if m.category else "Unknown",
                 "date": m.date.strftime('%d-%b-%Y'),
                 "remarks": m.remarks or "",
-                "data": m.measurements_json # Already valid JSON/Dict if using SQLAlchemy JSON type properly, else might need parsing
+                "data": m.measurements_json 
             })
             
         return jsonify({
@@ -491,49 +842,71 @@ def register_routes(app):
             "name": customer.name,
             "mobile": customer.mobile,
             "gender": customer.gender,
-            "city": "Ahmedabad", # Placeholder or add to model
+            "city": "Ahmedabad", 
             "total_pending": customer.total_pending,
             "measurements": measurements_data,
-            "orders_count": len(customer.orders)
+            "orders_count": len(customer.orders),
+            "photo": customer.photo
         })
 
     @app.route('/customer/<int:id>/measurement', methods=['GET', 'POST'])
+    @login_required
     def measurement(id):
-        customer = Customer.query.get_or_404(id)
-        # Fetch categories based on gender (or all if not specified, but usually gender specific)
-        categories = Category.query.filter_by(gender=customer.gender.lower()).all()
-
+        customer = Customer.query.filter_by(id=id, user_id=current_user.id).first_or_404()
+        # Fetch categories: Custom (mine) OR System Default (None) for THIS user's gender or generic?
+        # Categories usually filtered by gender.
+        # Filter: gender match AND (user_id is None OR user_id is mine)
+        # Custom Categories Only: User requested to remove "pre-existing" (System) categories.
+        # So we ONLY fetch categories belonging to the current user.
+        categories = Category.query.filter(Category.gender == customer.gender.lower()).filter(Category.user_id == current_user.id).all()
+        
         # Handle Reuse Measurement
         reuse_id = request.args.get('reuse_id')
         reuse_measurement = None
         if reuse_id:
-            reuse_measurement = Measurement.query.get(reuse_id)
+            reuse_measurement = Measurement.query.filter_by(id=reuse_id, user_id=current_user.id).first()
             if reuse_measurement and reuse_measurement.customer_id != customer.id:
-                reuse_measurement = None # Security check
+                 reuse_measurement = None
 
         if request.method == 'POST':
             # Save Measurement
             cat_id = request.form.get('category_id')
-            measurements_data = request.form.get('measurements_json') # JSON string from frontend
+            measurements_data = request.form.get('measurements_json') 
             remarks = request.form.get('remarks')
             
             if cat_id and measurements_data:
-                # In a real app, parse the JSON
                 import json
                 try:
                     m_json = json.loads(measurements_data)
-                    new_meas = Measurement(
-                        customer_id=id,
-                        category_id=cat_id,
-                        measurements_json=m_json,
-                        remarks=remarks
-                    )
-                    db.session.add(new_meas)
-                    db.session.flush() # Get ID
                     
-                    app.logger.info(f"Measurement ID {new_meas.id} created/flushed.")
+                    # 1. Validation: Check if empty (all values empty)
+                    has_data = any(str(v).strip() for v in m_json.values() if v is not None)
                     
-                    app.logger.info(f"Measurement ID {new_meas.id} created/flushed.")
+                    if has_data:
+                        # 2. Check for Duplicates (Equality with last active measurement)
+                        last_meas = Measurement.query.filter_by(
+                            customer_id=id, 
+                            category_id=cat_id, 
+                            is_active=True,
+                            user_id=current_user.id
+                        ).order_by(Measurement.date.desc()).first()
+
+                        # Only save if different
+                        if not last_meas or last_meas.measurements_json != m_json or (remarks and last_meas.remarks != remarks):
+                            new_meas = Measurement(
+                                customer_id=id,
+                                category_id=cat_id,
+                                measurements_json=m_json,
+                                remarks=remarks,
+                                user_id=current_user.id
+                            )
+                            db.session.add(new_meas)
+                            db.session.flush() # Get ID
+                            app.logger.info(f"Measurement ID {new_meas.id} created/flushed.")
+                        else:
+                             app.logger.info("Duplicate measurement detected. Skipping save.")
+                    else:
+                        app.logger.info("Empty measurement data. Skipping save.")
                     
                     # ALWAYS Create Order
                     start_date_str = request.form.get('start_date')
@@ -560,14 +933,13 @@ def register_routes(app):
                     start_date = datetime.strptime(start_date_str, '%Y-%m-%d').date() if start_date_str else None
                     delivery_date = datetime.strptime(delivery_date_str, '%Y-%m-%d').date() if delivery_date_str else None
                     
-                    delivery_date = datetime.strptime(delivery_date_str, '%Y-%m-%d').date() if delivery_date_str else None
-                    
                     # Fetch Category Name for Item Description
                     category = Category.query.get(cat_id)
                     item_name = category.name if category else "Custom Tailoring"
 
                     new_order = Order(
                         customer_id=id,
+                        user_id=current_user.id,
                         items=[{"name": item_name, "qty": 1}], # Dynamic item name
                         work_status=work_status,
                         payment_status=pay_status,
@@ -577,9 +949,9 @@ def register_routes(app):
                         total_amt=total, 
                         advance=advance,
                         balance=total - advance, 
-                        payment_mode=payment_mode
+                        payment_mode=payment_mode,
+                        bill_created_by=request.form.get('created_by') or 'System'
                     )
-                    # Note: We are now setting Total Amt if provided.
                     
                     db.session.add(new_order)
                     db.session.commit()
@@ -602,6 +974,7 @@ def register_routes(app):
         return render_template('measurement.html', customer=customer, categories=categories, active_page='customers', reuse_measurement=reuse_measurement)
 
     @app.route('/measurements')
+    @login_required
     def measurements():
         from sqlalchemy.orm import joinedload
         from sqlalchemy import tuple_
@@ -633,8 +1006,8 @@ def register_routes(app):
                  cursor_date = None
 
         # 3. Build Query
-        # Eager Load Customer and Category to fix N+1
-        query = Measurement.query.options(
+        # Filter by User FIRST
+        query = Measurement.query.filter_by(user_id=current_user.id).options(
             joinedload(Measurement.customer),
             joinedload(Measurement.category)
         )
@@ -671,16 +1044,18 @@ def register_routes(app):
         return render_template('measurements.html', measurements=measurements_list, pagination=pagination, month_nav=month_nav, active_page='measurements')
 
     @app.route('/customer/<int:id>/history')
+    @login_required
     def customer_measurement_history(id):
-        customer = Customer.query.get_or_404(id)
+        customer = Customer.query.filter_by(id=id, user_id=current_user.id).first_or_404()
         # Fetch all measurements for this customer, sorted by newest first
-        measurements = Measurement.query.filter_by(customer_id=id).order_by(Measurement.date.desc()).all()
+        measurements = Measurement.query.filter_by(customer_id=id, user_id=current_user.id).order_by(Measurement.date.desc()).all()
         return render_template('measurement_history.html', customer=customer, measurements=measurements, active_page='customers')
 
     @app.route('/orders', methods=['GET'])
+    @login_required
     def orders():
-        from datetime import datetime
         import calendar
+        from sqlalchemy import func
 
         # Filters
         search_query = request.args.get('q')
@@ -699,30 +1074,25 @@ def register_routes(app):
         start_date = datetime(current_year, current_month, 1)
         end_date = datetime(current_year, current_month, last_day, 23, 59, 59)
         
-        # Apply Date Filter (Override 'date' param if Month filter is active by default logic)
-        # Assuming user wants "This Month's Customers" primarily
-        from sqlalchemy import func
+        # Base Query scoped to User
+        query = Order.query.filter_by(user_id=current_user.id)
         
         # New: Delivery Date Filter (Overrides month filter)
         delivery_date_param = request.args.get('delivery_date')
         if delivery_date_param:
             if delivery_date_param == 'today':
-                filter_date = datetime.today().date()
-                query = Order.query.filter(Order.delivery_date == filter_date)
+                from datetime import date
+                filter_date = date.today()
+                query = query.filter(Order.delivery_date == filter_date)
             else:
                 try:
                     filter_date = datetime.strptime(delivery_date_param, '%Y-%m-%d').date()
-                    query = Order.query.filter(Order.delivery_date == filter_date)
+                    query = query.filter(Order.delivery_date == filter_date)
                 except:
                     # Fallback to month filter if invalid
-                    query = Order.query.filter(Order.created_at >= start_date, Order.created_at <= end_date)
+                    query = query.filter(Order.created_at >= start_date, Order.created_at <= end_date)
         else:
-             query = Order.query.filter(Order.created_at >= start_date, Order.created_at <= end_date)
-        
-        # Exclude 'Previous Balance Due' if needed (though date filter normally handles this if they are old)
-        # However, for robustness, we can filter them out if they don't belong in the "Orders" list view
-        # query = query.filter(Order.items... complex JSON check difficult in SQLite/Postgres cleanly without native JSON operators sometimes)
-        # Let's rely on date for now.
+             query = query.filter(Order.created_at >= start_date, Order.created_at <= end_date)
         
         if search_query:
             search = f"%{search_query}%"
@@ -763,6 +1133,7 @@ def register_routes(app):
         return render_template('orders.html', orders=orders_list, pagination=pagination, month_nav=month_nav, active_page='orders')
 
     @app.route('/orders/update_details', methods=['POST'])
+    @login_required
     def orders_update_details():
         order_id = request.form.get('order_id')
         
@@ -776,7 +1147,8 @@ def register_routes(app):
             mode = request.form.get('payment_mode')
             delivery_date_str = request.form.get('delivery_date')
             
-            order = Order.query.get_or_404(order_id)
+            # Check ownership
+            order = Order.query.filter_by(id=order_id, user_id=current_user.id).first_or_404()
             
             # Update fields
             if status:
@@ -791,6 +1163,10 @@ def register_routes(app):
             order.balance = round(total - advance, 2)
             order.payment_mode = mode
             
+            created_by = request.form.get('bill_created_by')
+            if created_by:
+                order.bill_created_by = created_by
+            
             # Recalculate Payment Status
             if order.total_amt > 0:
                 if order.balance <= 0:
@@ -802,10 +1178,6 @@ def register_routes(app):
             else:
                  order.payment_status = 'Pending'
     
-            # Log Update
-            # Log Update
-            # History removed
-
             db.session.commit()
             flash('Order details updated successfully!', 'success')
         except Exception as e:
@@ -814,31 +1186,17 @@ def register_routes(app):
             
         return redirect(url_for('orders'))
 
-    # Keep bills_update for backward compat if needed, or redirect it?
-    # Let's keep it but ensure it doesn't overwrite status with 'Paid' if we can help it.
-    # Actually, bills page might still use it. I should probably update bills page later.
-    # For now, let's focus on Orders page using the NEW route.
-
-
     @app.route('/delete-customer/<int:id>', methods=['POST'])
+    @login_required
     def delete_customer(id):
-            
-        customer = Customer.query.get_or_404(id)
+        customer = Customer.query.filter_by(id=id, user_id=current_user.id).first_or_404()
         try:
-            cust_name = customer.name
-            cust_id = customer.id
-            
             # Delete related records
-            Measurement.query.filter_by(customer_id=id).delete()
+            Measurement.query.filter_by(customer_id=id).delete() # Cascade technically handles this but ok
             Order.query.filter_by(customer_id=id).delete()
             Reminder.query.filter_by(customer_id=id).delete()
             
             db.session.delete(customer)
-            
-            # Log
-            # Log
-            # History removed
-            
             db.session.commit()
             flash('Customer deleted successfully.', 'success')
         except Exception as e:
@@ -848,18 +1206,11 @@ def register_routes(app):
         return redirect(url_for('customers'))
 
     @app.route('/delete/order/<int:id>', methods=['POST'])
+    @login_required
     def delete_order(id):
-        order = Order.query.get_or_404(id)
+        order = Order.query.filter_by(id=id, user_id=current_user.id).first_or_404()
         try:
-            oid = order.id
-            cust_name = order.customer.name
-            
             db.session.delete(order)
-            
-            # Log
-            # Log
-            # History removed
-            
             db.session.commit()
             flash('Order deleted successfully.', 'success')
         except Exception as e:
@@ -868,11 +1219,8 @@ def register_routes(app):
             
         return redirect(url_for('orders'))
 
-
-
-    
     @app.route('/bills')
-    @app.route('/bills')
+    @login_required
     def bills():
         from datetime import datetime
         import calendar
@@ -895,10 +1243,9 @@ def register_routes(app):
         start_date = datetime(current_year, current_month, 1)
         end_date = datetime(current_year, current_month, last_day, 23, 59, 59)
         
-        # Apply Date Filter (Override 'date' param if Month filter is active by default logic)
-        # Assuming user wants "This Month's Customers" primarily
         from sqlalchemy import func
-        query = Order.query.filter(Order.created_at >= start_date, Order.created_at <= end_date)
+        # Filter by User
+        query = Order.query.filter_by(user_id=current_user.id).filter(Order.created_at >= start_date, Order.created_at <= end_date)
         
         if search_query:
              search = f"%{search_query}%"
@@ -942,6 +1289,7 @@ def register_routes(app):
         return render_template('bills.html', bills=bills_list, pagination=pagination, month_nav=month_nav, active_page='bills')
     
     @app.route('/bills/update', methods=['POST'])
+    @login_required
     def bills_update():
         order_id = request.form.get('order_id')
         total = round(float(request.form.get('total_amt') or 0), 2)
@@ -949,7 +1297,9 @@ def register_routes(app):
         mode = request.form.get('payment_mode')
         delivery_date_str = request.form.get('delivery_date')
         
-        order = Order.query.get_or_404(order_id)
+        # Check ownership
+        order = Order.query.filter_by(id=order_id, user_id=current_user.id).first_or_404()
+        
         order.total_amt = total
         order.advance = advance
         order.balance = round(total - advance, 2)
@@ -976,42 +1326,27 @@ def register_routes(app):
 
     # --- Additional Features (Reminders, Search, Invoices) ---
     @app.route('/settings/reset_data', methods=['POST'])
+    @login_required
     def reset_data():
         try:
-            # 1. Clear Database Tables (Order Matters for FKs)
-            # Delete History first as it references everything
-            # History removed
-            
+            # 1. Clear Database Tables (Scoped to User)
             
             # Delete Reminders
-            try:
-                db.session.query(Reminder).delete()
-            except:
-                pass # Ignore if table issue
+            db.session.query(Reminder).filter(Reminder.customer.has(user_id=current_user.id)).delete(synchronize_session=False)
 
             # Delete Transactional Data
-            db.session.query(Order).delete()
-            db.session.query(Measurement).delete()
-            db.session.query(Customer).delete()
+            db.session.query(Order).filter_by(user_id=current_user.id).delete()
+            db.session.query(Measurement).filter_by(user_id=current_user.id).delete()
+            db.session.query(Customer).filter_by(user_id=current_user.id).delete()
             
             db.session.commit()
             
-            # 2. Clear Saved Bills Directory
-            import shutil
-            bills_dir = os.path.join(app.root_path, 'saved_bills')
-            if os.path.exists(bills_dir):
-                # Remove all contents but keep the root folder
-                for filename in os.listdir(bills_dir):
-                    file_path = os.path.join(bills_dir, filename)
-                    try:
-                        if os.path.isfile(file_path) or os.path.islink(file_path):
-                            os.unlink(file_path)
-                        elif os.path.isdir(file_path):
-                            shutil.rmtree(file_path)
-                    except Exception as e:
-                        print(f'Failed to delete {file_path}. Reason: {e}')
+            # 2. Clear Saved Bills Directory (Skipped for multi-tenant safety unless per-user folder)
+            # import shutil
+            # bills_dir = os.path.join(app.root_path, 'saved_bills')
+            # ...
             
-            flash('System Reset Successful! All Orders, Customers, Measurements, and Files have been cleared.', 'success')
+            flash('Your data (Orders, Customers, Measurements) has been reset.', 'success')
         except Exception as e:
             db.session.rollback()
             print(f"Reset Error: {e}")
@@ -1019,6 +1354,7 @@ def register_routes(app):
         return redirect(url_for('settings'))
 
     @app.route('/reminders')
+    @login_required
     def reminders():
         from datetime import date, timedelta
         
@@ -1026,19 +1362,19 @@ def register_routes(app):
         tomorrow = today + timedelta(days=1)
         
         # 1. Urgent / Overdue Deliveries (Due <= Today AND Not Delivered)
-        urgent_orders = Order.query.filter(
+        urgent_orders = Order.query.filter_by(user_id=current_user.id).filter(
             Order.delivery_date <= today, 
             Order.work_status != 'Delivered'
         ).order_by(Order.delivery_date.asc()).all()
         
         # 2. Upcoming Deliveries (Tomorrow)
-        upcoming_orders = Order.query.filter(
+        upcoming_orders = Order.query.filter_by(user_id=current_user.id).filter(
             Order.delivery_date == tomorrow,
             Order.work_status != 'Delivered'
         ).all()
         
         # 3. Pending Payments (Orders with Balance > 0)
-        pending_payments = Order.query.filter(Order.balance > 0).order_by(Order.balance.desc()).limit(10).all()
+        pending_payments = Order.query.filter_by(user_id=current_user.id).filter(Order.balance > 0).order_by(Order.balance.desc()).limit(10).all()
         
         return render_template('reminders.html', 
                              urgent_orders=urgent_orders, 
@@ -1087,36 +1423,47 @@ def register_routes(app):
         return render_template('invoice.html', order=order, shop=shop, is_public=True)
 
     @app.route('/invoice/<int:id>')
+    @login_required
     def view_invoice(id):
-        order = Order.query.get_or_404(id)
-        from models import ShopProfile
-        shop = ShopProfile.query.first() or ShopProfile()
+        order = Order.query.filter_by(id=id, user_id=current_user.id).first_or_404()
         
-        # Generate Public Link for Sharing
+        # Determine Shop Profile
+        from models import ShopProfile
+        shop = ShopProfile.query.filter_by(user_id=current_user.id).first()
+        if not shop:
+             shop = ShopProfile(user_id=current_user.id) # Should exist by now usually
+        
+        # Generate Public Link for Sharing (Optional: Verify if token logic needs User ID salt?)
+        # For now, token is based on ID + secret, ID is unique globally so safe-ish.
+        # But if we want to secure it more, token logic might need checking. 
+        # Assuming generate_bill_token uses SECRET_KEY.
+        from utils import generate_bill_token
         token = generate_bill_token(id)
         public_url = url_for('public_bill_view', id=id, token=token, _external=True)
         
         return render_template('invoice.html', order=order, shop=shop, public_url=public_url)
 
     @app.route('/invoice/<int:id>/download')
+    @login_required
     def download_invoice(id):
         import os
         from flask import send_file
         from datetime import datetime
         
-        order = Order.query.get_or_404(id)
+        order = Order.query.filter_by(id=id, user_id=current_user.id).first_or_404()
         from models import ShopProfile
-        shop = ShopProfile.query.first() or ShopProfile()
+        shop = ShopProfile.query.filter_by(user_id=current_user.id).first()
+        if not shop: shop = ShopProfile(user_id=current_user.id)
         
         # Render HTML
         html_content = render_template('invoice.html', order=order, shop=shop, download_mode=True)
         
-        # 1. Determine Folder Path: saved_bills / YYYY / Month
-        # User requested: "year folder under month folder" -> usually means Year > Month
+        # 1. Determine Folder Path: saved_bills / user_id / YYYY / Month
+        # ISOLATION: Add user_id to path
         year_str = order.created_at.strftime('%Y')
-        month_str = order.created_at.strftime('%B') # Full month name e.g. December
+        month_str = order.created_at.strftime('%B') 
         
-        folder = os.path.join(app.root_path, 'saved_bills', year_str, month_str)
+        folder = os.path.join(app.root_path, 'saved_bills', str(current_user.id), year_str, month_str)
         if not os.path.exists(folder):
             os.makedirs(folder)
             
@@ -1133,6 +1480,7 @@ def register_routes(app):
         return send_file(filepath, as_attachment=True)
 
     @app.route('/invoice/<int:id>/save_pdf_copy', methods=['POST'])
+    @login_required
     def save_pdf_copy(id):
         if 'pdf' not in request.files:
             return jsonify({'success': False, 'message': 'No file part'}), 400
@@ -1141,12 +1489,14 @@ def register_routes(app):
         if file.filename == '':
              return jsonify({'success': False, 'message': 'No selected file'}), 400
 
-        order = Order.query.get_or_404(id)
+        order = Order.query.filter_by(id=id, user_id=current_user.id).first_or_404()
         
-        # Determine Path: saved_bills / YYYY / Month
+        # Date Logic
         year_str = order.created_at.strftime('%Y')
         month_str = order.created_at.strftime('%B')
-        folder = os.path.join(app.root_path, 'saved_bills', year_str, month_str)
+        
+        # ISOLATION: Add user_id to path
+        folder = os.path.join(app.root_path, 'saved_bills', str(current_user.id), year_str, month_str)
         
         if not os.path.exists(folder):
             os.makedirs(folder)
@@ -1166,32 +1516,30 @@ def register_routes(app):
             if os.path.exists(html_filepath):
                 try:
                     os.remove(html_filepath)
-                    print(f"Removed old HTML file: {html_filename}")
-                except Exception as del_err:
-                    print(f"Error removing old HTML: {del_err}")
+                except Exception:
+                    pass
 
             return jsonify({'success': True, 'message': 'PDF Saved Successfully'})
         except Exception as e:
-            print(f"Error saving PDF: {e}")
-            return jsonify({'success': False, 'message': str(e)}), 500
+             return jsonify({'success': False, 'message': str(e)}), 500
         
     @app.route('/export_csv')
+    @login_required
     def export_csv():
         import csv
         import io
         from flask import make_response
         
-        # Export Orders Data
+        # Export Orders Data for Current User
         output = io.StringIO()
         writer = csv.writer(output)
         
         # Headers
         writer.writerow(['Order ID', 'Date', 'Customer Name', 'Mobile', 'Items', 'Total Amount', 'Advance', 'Balance', 'Status', 'Payment Mode'])
         
-        orders = Order.query.order_by(Order.created_at.desc()).all()
+        orders = Order.query.filter_by(user_id=current_user.id).order_by(Order.created_at.desc()).all()
         
         for order in orders:
-            # Filter out opening balances if needed, or include them with clear label
             items_str = ", ".join([item.get('name', '') for item in order.items]) if order.items else ""
             
             writer.writerow([
@@ -1216,6 +1564,7 @@ def register_routes(app):
         return response
 
     @app.route('/settings/export_data', methods=['POST'])
+    @login_required
     def export_custom_data():
         import csv
         import io
@@ -1228,7 +1577,6 @@ def register_routes(app):
         try:
             start_date = datetime.strptime(start_date_str, '%Y-%m-%d')
             end_date = datetime.strptime(end_date_str, '%Y-%m-%d')
-            # Adjust end_date to include the full day
             end_date = end_date.replace(hour=23, minute=59, second=59)
         except ValueError:
             flash('Invalid date format.', 'error')
@@ -1240,81 +1588,44 @@ def register_routes(app):
         filename = f"{data_type.capitalize()}_{start_date.strftime('%d-%m-%Y')}_to_{end_date.strftime('%d-%m-%Y')}.csv"
         
         if data_type == 'orders':
-            orders = Order.query.filter(Order.created_at >= start_date, Order.created_at <= end_date).all()
+            orders = Order.query.filter(Order.created_at >= start_date, Order.created_at <= end_date, Order.user_id==current_user.id).all()
             writer.writerow(['Order ID', 'Customer Name', 'Mobile', 'Items', 'Total Amount', 'Advance', 'Balance', 'Status', 'Date'])
             for o in orders:
                 items_str = ", ".join([f"{i['name']} (x{i['qty']})" for i in (o.items or [])])
                 writer.writerow([o.id, o.customer.name, o.customer.mobile, items_str, o.total_amt, o.advance, o.balance, o.work_status, o.created_at.strftime('%Y-%m-%d')])
                 
         elif data_type == 'customers':
-            # Filter by created_date if available, or just dump all if date logic ambiguous? 
-            # User asked "file name on date to date according". Assuming filtering by creation date.
-            customers = Customer.query.filter(Customer.created_date >= start_date, Customer.created_date <= end_date).all()
+            customers = Customer.query.filter(Customer.created_date >= start_date, Customer.created_date <= end_date, Customer.user_id==current_user.id).all()
             writer.writerow(['ID', 'Name', 'Mobile', 'City', 'Total Orders', 'Pending Balance', 'Joined Date'])
             for c in customers:
                 writer.writerow([c.id, c.name, c.mobile, c.city, len(c.orders), c.total_pending, c.created_date.strftime('%Y-%m-%d')])
 
         elif data_type == 'measurements':
-            measurements = Measurement.query.filter(Measurement.date >= start_date, Measurement.date <= end_date).all()
+            measurements = Measurement.query.filter(Measurement.date >= start_date, Measurement.date <= end_date, Measurement.user_id==current_user.id).all()
             writer.writerow(['ID', 'Customer', 'Mobile', 'Category', 'Date', 'Details'])
             for m in measurements:
                 details = str(m.measurements_json)
                 writer.writerow([m.id, m.customer.name, m.customer.mobile, m.category.name, m.date.strftime('%Y-%m-%d'), details])
         
         elif data_type == 'bills':
-            # Bills essentially Orders but focus on financials
-            orders = Order.query.filter(Order.created_at >= start_date, Order.created_at <= end_date).all()
+            orders = Order.query.filter(Order.created_at >= start_date, Order.created_at <= end_date, Order.user_id==current_user.id).all()
             writer.writerow(['Bill No', 'Date', 'Customer', 'Mobile', 'Total Amount', 'Received', 'Balance', 'Payment Mode'])
             for o in orders:
                 writer.writerow([o.id, o.created_at.strftime('%d-%m-%Y'), o.customer.name, o.customer.mobile, o.total_amt, o.advance, o.balance, o.payment_mode])
 
         csv_content = si.getvalue()
         
-        # Save to Server Folder: csv_data/[type]/
-        import os
-        save_folder = os.path.join(app.root_path, 'csv_data', data_type)
-        if not os.path.exists(save_folder):
-             os.makedirs(save_folder)
-             
-        save_path = os.path.join(save_folder, filename)
-        with open(save_path, 'w', newline='', encoding='utf-8') as f:
-            f.write(csv_content)
-
         output = make_response(csv_content)
         output.headers["Content-Disposition"] = f"attachment; filename={filename}"
         output.headers["Content-type"] = "text/csv"
         return output
 
-    @app.route('/api/customer/<int:id>')
-    def get_customer_details(id):
-        # Optimized query with joined load for measurements
-        customer = Customer.query.options(db.joinedload(Customer.measurements).joinedload(Measurement.category)).get_or_404(id)
-        
-        # Prepare measurements data
-        measurements_data = []
-        for m in customer.measurements:
-            measurements_data.append({
-                'id': m.id,
-                'category': m.category.name,
-                'date': m.date.strftime('%d-%b-%Y'),
-                'data': m.measurements_json,
-                'remarks': m.remarks
-            })
-            
-        return jsonify({
-            'id': customer.id,
-            'name': customer.name,
-            'mobile': customer.mobile,
-            'gender': customer.gender.capitalize() if customer.gender else '-',
-            'total_pending': getattr(customer, 'total_pending_opt', 0), # Using the hybrid property or optimized field
-            'orders_count': len(customer.orders),
-            'measurements': measurements_data
-        })
-
+    # Duplicate get_customer_details removed
+    
     @app.route('/delete/measurement/<int:id>', methods=['POST'])
+    @login_required
     def delete_measurement(id):
-        m = Measurement.query.get_or_404(id)
-        cust_id = m.customer_id
+        m = Measurement.query.filter_by(id=id, user_id=current_user.id).first_or_404()
         try:
             db.session.delete(m)
             db.session.commit()
